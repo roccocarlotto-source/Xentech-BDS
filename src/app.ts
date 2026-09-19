@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health";
 import { clientesRouter } from "./routes/clientes";
 import { clientesImportRouter } from "./routes/clientesImport";
 import { meRouter } from "./routes/me";
+import { adminOrganizationsRouter } from "./routes/adminOrganizations";
 import { AppError } from "./utils/AppError";
 
 export function createApp() {
@@ -26,6 +27,7 @@ export function createApp() {
   // el orden de /api/clientes/stats dentro de clientes.ts).
   app.use(clientesImportRouter);
   app.use(clientesRouter);
+  app.use(adminOrganizationsRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
