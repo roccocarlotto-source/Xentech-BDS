@@ -44,11 +44,11 @@ const commitResponse = {
   errores: [{ fila: 3, mensaje: "El nombre es requerido" }],
 };
 
-async function subirArchivo() {
-  const file = new File(["contenido"], "clientes.xlsx", {
+async function subirArchivo(nombreArchivo = "clientes.xlsx") {
+  const file = new File(["contenido"], nombreArchivo, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  await userEvent.upload(screen.getByLabelText("Archivo Excel"), file);
+  await userEvent.upload(screen.getByLabelText("Archivo de clientes"), file);
   await userEvent.click(screen.getByRole("button", { name: "Analizar archivo" }));
 }
 
@@ -99,6 +99,18 @@ describe("ImportClientesPage", () => {
     const [, requestInit] = commitCall as [string, RequestInit];
     const body = requestInit.body as FormData;
     expect(body.get("mapping")).toBe(JSON.stringify(previewResponse.suggestedMapping));
+  });
+
+  test("tambien acepta subir un archivo .txt", async () => {
+    renderPage();
+    await subirArchivo("clientes.txt");
+
+    await screen.findByRole("button", { name: "Importar 2 clientes" });
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = requestInit.body as FormData;
+    const uploaded = body.get("file") as File;
+    expect(uploaded.name).toBe("clientes.txt");
   });
 
   test("el boton de importar esta deshabilitado si no hay columna de nombre mapeada", async () => {

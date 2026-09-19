@@ -19,14 +19,26 @@ function requireOrganizationId(req: Request): string {
 }
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB, suficiente para un Excel de miles de filas.
+const EXTENSIONES_SOPORTADAS = [".xlsx", ".txt", ".csv"];
 
 // Memoria, no disco: el archivo se procesa en el momento y no se persiste
 // en ningún lado (ver comentario en importClientes.service.ts sobre por
 // qué el flujo de dos pasos no necesita guardar el archivo entre uno y
-// otro).
+// otro). El filtro por extensión es solo para rechazar temprano — el mismo
+// chequeo (y el mensaje real) vive en parseFileBuffer().
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  fileFilter(_req, file, cb) {
+    const soportado = EXTENSIONES_SOPORTADAS.some((ext) =>
+      file.originalname.toLowerCase().endsWith(ext),
+    );
+    if (soportado) {
+      cb(null, true);
+    } else {
+      cb(new AppError("Formato de archivo no soportado", 400));
+    }
+  },
 });
 
 function requireFile(req: Request): Express.Multer.File {
@@ -44,7 +56,7 @@ clientesImportRouter.post(
   asyncHandler(async (req, res) => {
     requireOrganizationId(req); // Solo valida pertenencia a organización; no escribe nada.
     const file = requireFile(req);
-    res.json(await importClientesService.previewImport(file.buffer));
+    res.json(await importClientesService.previewImport(file.buffer, file.originalname));
   }),
 );
 
@@ -72,6 +84,13 @@ clientesImportRouter.post(
     }
 
     const mapping = clienteImportMappingSchema.parse(parsedMapping);
-    res.json(await importClientesService.commitImport(organizationId, file.buffer, mapping));
+    res.json(
+      await importClientesService.commitImport(
+        organizationId,
+        file.buffer,
+        file.originalname,
+        mapping,
+      ),
+    );
   }),
 );

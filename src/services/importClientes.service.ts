@@ -1,11 +1,13 @@
 import ExcelJS from "exceljs";
+import { parse as parseCsv } from "csv-parse/sync";
 import { DateTime } from "luxon";
 import { AppError } from "../utils/AppError";
 import { createClienteSchema, type CreateClienteInput } from "../schemas/cliente.schema";
 import { clienteRepository } from "../repositories/cliente.repository";
 
-// Fase 3 — importación. Por ahora solo Excel (.xlsx); TXT y PDF quedan para
-// una siguiente iteración del roadmap (ver docs/estado-actual.md).
+// Fase 3 — importación. Excel (.xlsx) y TXT/CSV (texto delimitado) listos;
+// PDF queda para una siguiente iteración del roadmap (ver
+// docs/estado-actual.md).
 //
 // Flujo en dos pasos, sin estado en el servidor entre uno y otro (el archivo
 // no se guarda en ningún lado): el frontend pide un preview con el archivo,
@@ -113,9 +115,12 @@ function normalizeCellValue(value: ExcelJS.CellValue): unknown {
   return value;
 }
 
-export async function parseWorkbookBuffer(
-  buffer: Buffer,
-): Promise<{ headers: string[]; rows: Array<Record<string, unknown>> }> {
+interface ParsedFile {
+  headers: string[];
+  rows: Array<Record<string, unknown>>;
+}
+
+export async function parseExcelBuffer(buffer: Buffer): Promise<ParsedFile> {
   const workbook = new ExcelJS.Workbook();
   try {
     // exceljs tipa `load` con un `Buffer` propio (su .d.ts declara uno local
@@ -163,8 +168,91 @@ export async function parseWorkbookBuffer(
   return { headers: headers.filter(Boolean), rows };
 }
 
-export async function previewImport(buffer: Buffer): Promise<ClienteImportPreview> {
-  const { headers, rows } = await parseWorkbookBuffer(buffer);
+// Delimitadores candidatos para un .txt — se elige el que más ocurrencias
+// tiene en la primera línea (el header), asumiendo que un archivo bien
+// formado separa TODAS las columnas con el mismo caracter.
+const TXT_DELIMITADORES = [",", ";", "\t", "|"];
+
+function detectarDelimitador(primeraLinea: string): string {
+  let mejor = TXT_DELIMITADORES[0];
+  let mejorConteo = 0;
+  for (const delimitador of TXT_DELIMITADORES) {
+    const conteo = primeraLinea.split(delimitador).length - 1;
+    if (conteo > mejorConteo) {
+      mejor = delimitador;
+      mejorConteo = conteo;
+    }
+  }
+  return mejor;
+}
+
+export function parseTxtBuffer(buffer: Buffer): ParsedFile {
+  const texto = buffer.toString("utf-8");
+  const primeraLinea = texto.split(/\r?\n/, 1)[0] ?? "";
+  if (!primeraLinea.trim()) {
+    throw new AppError("El archivo está vacío", 400);
+  }
+  const delimitador = detectarDelimitador(primeraLinea);
+
+  let registros: string[][];
+  try {
+    registros = parseCsv(texto, {
+      delimiter: delimitador,
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true,
+    }) as string[][];
+  } catch {
+    throw new AppError("No se pudo leer el archivo de texto. ¿Está bien formado?", 400);
+  }
+
+  const [headerRow, ...dataRows] = registros;
+  const headers = (headerRow ?? []).map((h) => h.trim());
+  if (headers.filter(Boolean).length === 0) {
+    throw new AppError("No se encontraron columnas en la primera línea del archivo", 400);
+  }
+
+  const rows: Array<Record<string, unknown>> = [];
+  for (const cols of dataRows) {
+    if (rows.length >= MAX_ROWS) break;
+
+    const record: Record<string, unknown> = {};
+    let vacia = true;
+    headers.forEach((header, idx) => {
+      if (!header) return;
+      const value = cols[idx]?.trim();
+      record[header] = value || undefined;
+      if (value) vacia = false;
+    });
+
+    if (!vacia) rows.push(record);
+  }
+
+  return { headers: headers.filter(Boolean), rows };
+}
+
+function extension(filename: string): string {
+  const match = /\.([a-z0-9]+)$/i.exec(filename);
+  return match ? match[1].toLowerCase() : "";
+}
+
+// Punto de entrada único: decide el parser por la extensión del archivo.
+// PDF todavía no está soportado (queda para una siguiente iteración).
+export async function parseFileBuffer(buffer: Buffer, filename: string): Promise<ParsedFile> {
+  const ext = extension(filename);
+  if (ext === "xlsx") return parseExcelBuffer(buffer);
+  if (ext === "txt" || ext === "csv") return parseTxtBuffer(buffer);
+  throw new AppError(
+    `Formato de archivo no soportado (.${ext || "?"}). Por ahora: Excel (.xlsx), TXT o CSV.`,
+    400,
+  );
+}
+
+export async function previewImport(
+  buffer: Buffer,
+  filename: string,
+): Promise<ClienteImportPreview> {
+  const { headers, rows } = await parseFileBuffer(buffer, filename);
   return {
     headers,
     totalRows: rows.length,
@@ -256,13 +344,14 @@ export function mapRow(
 export async function commitImport(
   organizationId: string,
   buffer: Buffer,
+  filename: string,
   mapping: ClienteImportMapping,
 ): Promise<ClienteImportResult> {
   if (!mapping.nombre) {
     throw new AppError('El mapeo debe incluir al menos la columna de "nombre"', 400);
   }
 
-  const { rows } = await parseWorkbookBuffer(buffer);
+  const { rows } = await parseFileBuffer(buffer, filename);
   const errores: ClienteImportRowError[] = [];
   let creados = 0;
 

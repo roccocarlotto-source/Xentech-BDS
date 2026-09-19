@@ -100,12 +100,13 @@ export function ImportClientesPage() {
       {paso === "elegir" && (
         <section className="import-card">
           <p>
-            Subí un archivo Excel (.xlsx) con tus clientes. TXT y PDF todavía no están soportados.
+            Subí un archivo Excel (.xlsx), TXT o CSV con tus clientes. PDF todavía no está
+            soportado.
           </p>
           <input
             type="file"
-            aria-label="Archivo Excel"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            aria-label="Archivo de clientes"
+            accept=".xlsx,.txt,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
           />
           <button
