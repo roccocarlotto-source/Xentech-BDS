@@ -31,10 +31,10 @@
   habilitar/deshabilitar por
   organización los tres tipos de agente (WhatsApp, gestión de base de
   datos, recordatorios) — todavía sin lógica funcional de ningún
-  agente, eso es Fase 5. Hay un proyecto real de Supabase provisionado
-  y schema aplicado; ya tenemos el anon key, pero falta un usuario de
-  prueba (Auth) para poder verificar el frontend/CRUD de punta a punta
-  contra datos reales — ver "Próximo paso" en el doc de estado.
+  agente, eso es Fase 5. Verificado de punta a punta contra Supabase
+  Auth + Postgres reales (no mocks) vía el workflow manual
+  `e2e-smoke.yml` — ver `scripts/e2e-smoke.ts`. Falta definir el
+  alcance de Fase 5 (qué hace cada agente en concreto).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
