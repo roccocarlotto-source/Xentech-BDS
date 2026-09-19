@@ -1,0 +1,32 @@
+name: DB Migrate
+
+# Workflow manual: aplica el schema de Prisma a la base de datos real
+# (Supabase). Se corre a mano (workflow_dispatch) porque en este momento
+# del proyecto todavia no versionamos migraciones (prisma/migrations/),
+# usamos `prisma db push` para sincronizar el schema mientras el modelo
+# de datos esta en una etapa temprana y puede cambiar seguido. El motivo
+# de que esto corra en CI y no localmente: la descarga de los binarios
+# del motor de Prisma (binaries.prisma.sh) esta bloqueada por politica
+# de red tanto en el entorno cloud de Claude como en el dispositivo local
+# de Rocco; en los runners de GitHub Actions no hay esa restriccion.
+on:
+  workflow_dispatch:
+
+jobs:
+  db-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run prisma:generate
+      - name: prisma db push
+        run: npx prisma db push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
