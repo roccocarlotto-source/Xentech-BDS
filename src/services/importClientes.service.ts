@@ -1,13 +1,13 @@
 import ExcelJS from "exceljs";
 import { parse as parseCsv } from "csv-parse/sync";
+import { PDFParse } from "pdf-parse";
 import { DateTime } from "luxon";
 import { AppError } from "../utils/AppError";
 import { createClienteSchema, type CreateClienteInput } from "../schemas/cliente.schema";
 import { clienteRepository } from "../repositories/cliente.repository";
 
-// Fase 3 — importación. Excel (.xlsx) y TXT/CSV (texto delimitado) listos;
-// PDF queda para una siguiente iteración del roadmap (ver
-// docs/estado-actual.md).
+// Fase 3 — importación completa: Excel (.xlsx), TXT/CSV (texto delimitado)
+// y PDF (con tabla de bordes/grilla detectable).
 //
 // Flujo en dos pasos, sin estado en el servidor entre uno y otro (el archivo
 // no se guarda en ningún lado): el frontend pide un preview con el archivo,
@@ -231,19 +231,84 @@ export function parseTxtBuffer(buffer: Buffer): ParsedFile {
   return { headers: headers.filter(Boolean), rows };
 }
 
+// El PDF se soporta solo cuando trae una tabla con bordes/grilla detectable
+// (lo que exportan la mayoría de las herramientas de reportes) — pdf-parse
+// la reconstruye analizando las líneas del vector gráfico del PDF, no el
+// texto suelto (que no trae información confiable de a qué columna
+// pertenece cada valor). Un PDF de solo texto (sin tabla) no es soportado:
+// mejor pedir Excel/TXT/CSV que adivinar mal el mapeo de columnas.
+export async function parsePdfBuffer(buffer: Buffer): Promise<ParsedFile> {
+  const parser = new PDFParse({ data: buffer });
+  let tableResult;
+  try {
+    tableResult = await parser.getTable();
+  } catch {
+    throw new AppError("No se pudo leer el archivo. ¿Es un PDF válido?", 400);
+  } finally {
+    await parser.destroy();
+  }
+
+  const tablasEncontradas = tableResult.pages.flatMap((pagina) => pagina.tables);
+  if (tablasEncontradas.length === 0) {
+    throw new AppError(
+      "No se detectó ninguna tabla en el PDF. Este formato solo soporta PDFs con una tabla de bordes/grilla — probá exportar como Excel (.xlsx) o CSV.",
+      400,
+    );
+  }
+
+  const [primeraTabla, ...restoTablas] = tablasEncontradas;
+  const headerRow = primeraTabla[0] ?? [];
+  const headers = headerRow.map((h) => h.trim());
+  if (headers.filter(Boolean).length === 0) {
+    throw new AppError("No se encontraron columnas en la tabla del PDF", 400);
+  }
+
+  // Si el PDF tiene varias páginas, cada una puede traer su propia tabla
+  // (a veces repitiendo el header) — se concatenan todas las filas, salvo
+  // que una tabla repita exactamente el mismo header de la primera (caso
+  // típico de una tabla larga que se corta entre páginas).
+  const filasCrudas: string[][] = [...primeraTabla.slice(1)];
+  for (const tabla of restoTablas) {
+    const [posibleHeader, ...resto] = tabla;
+    const esMismoHeader =
+      posibleHeader !== undefined &&
+      posibleHeader.length === headerRow.length &&
+      posibleHeader.every((valor, idx) => valor.trim() === headers[idx]);
+    filasCrudas.push(...(esMismoHeader ? resto : tabla));
+  }
+
+  const rows: Array<Record<string, unknown>> = [];
+  for (const cols of filasCrudas) {
+    if (rows.length >= MAX_ROWS) break;
+
+    const record: Record<string, unknown> = {};
+    let vacia = true;
+    headers.forEach((header, idx) => {
+      if (!header) return;
+      const value = cols[idx]?.trim();
+      record[header] = value || undefined;
+      if (value) vacia = false;
+    });
+
+    if (!vacia) rows.push(record);
+  }
+
+  return { headers: headers.filter(Boolean), rows };
+}
+
 function extension(filename: string): string {
   const match = /\.([a-z0-9]+)$/i.exec(filename);
   return match ? match[1].toLowerCase() : "";
 }
 
 // Punto de entrada único: decide el parser por la extensión del archivo.
-// PDF todavía no está soportado (queda para una siguiente iteración).
 export async function parseFileBuffer(buffer: Buffer, filename: string): Promise<ParsedFile> {
   const ext = extension(filename);
   if (ext === "xlsx") return parseExcelBuffer(buffer);
   if (ext === "txt" || ext === "csv") return parseTxtBuffer(buffer);
+  if (ext === "pdf") return parsePdfBuffer(buffer);
   throw new AppError(
-    `Formato de archivo no soportado (.${ext || "?"}). Por ahora: Excel (.xlsx), TXT o CSV.`,
+    `Formato de archivo no soportado (.${ext || "?"}). Por ahora: Excel (.xlsx), TXT, CSV o PDF.`,
     400,
   );
 }

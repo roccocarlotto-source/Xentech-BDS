@@ -19,7 +19,7 @@ function requireOrganizationId(req: Request): string {
 }
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB, suficiente para un Excel de miles de filas.
-const EXTENSIONES_SOPORTADAS = [".xlsx", ".txt", ".csv"];
+const EXTENSIONES_SOPORTADAS = [".xlsx", ".txt", ".csv", ".pdf"];
 
 // Memoria, no disco: el archivo se procesa en el momento y no se persiste
 // en ningún lado (ver comentario en importClientes.service.ts sobre por

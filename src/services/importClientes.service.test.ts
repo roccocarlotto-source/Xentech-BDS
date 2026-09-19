@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
 import ExcelJS from "exceljs";
 import { createClienteSchema } from "../schemas/cliente.schema";
@@ -6,10 +8,13 @@ import {
   mapRow,
   parseExcelBuffer,
   parseFileBuffer,
+  parsePdfBuffer,
   parseTxtBuffer,
   previewImport,
   suggestMapping,
 } from "./importClientes.service";
+
+const FIXTURES_DIR = path.join(__dirname, "__fixtures__");
 
 async function buildWorkbookBuffer(headers: string[], rows: unknown[][]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -79,6 +84,24 @@ test("parseTxtBuffer rechaza un archivo vacio", () => {
   assert.throws(() => parseTxtBuffer(Buffer.from("", "utf-8")));
 });
 
+test("parsePdfBuffer lee una tabla con bordes/grilla", async () => {
+  const buffer = readFileSync(path.join(FIXTURES_DIR, "clientes-tabla.pdf"));
+  const { headers, rows } = await parsePdfBuffer(buffer);
+  assert.deepEqual(headers, ["Nombre", "Telefono", "Email"]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].Nombre, "Ana Perez");
+  assert.equal(rows[1].Email, "beto@example.com");
+});
+
+test("parsePdfBuffer rechaza un PDF sin ninguna tabla detectable", async () => {
+  const buffer = readFileSync(path.join(FIXTURES_DIR, "sin-tabla.pdf"));
+  await assert.rejects(() => parsePdfBuffer(buffer));
+});
+
+test("parsePdfBuffer rechaza un archivo que no es un PDF valido", async () => {
+  await assert.rejects(() => parsePdfBuffer(Buffer.from("esto no es un pdf")));
+});
+
 test("parseFileBuffer despacha por extension y rechaza formatos no soportados", async () => {
   const excelBuffer = await buildWorkbookBuffer(["Nombre"], [["Ana"]]);
   const excelResult = await parseFileBuffer(excelBuffer, "clientes.xlsx");
@@ -87,7 +110,11 @@ test("parseFileBuffer despacha por extension y rechaza formatos no soportados", 
   const txtResult = await parseFileBuffer(Buffer.from("Nombre\nAna\n", "utf-8"), "clientes.txt");
   assert.deepEqual(txtResult.headers, ["Nombre"]);
 
-  await assert.rejects(() => parseFileBuffer(Buffer.from("%PDF-1.4"), "clientes.pdf"));
+  const pdfBuffer = readFileSync(path.join(FIXTURES_DIR, "clientes-tabla.pdf"));
+  const pdfResult = await parseFileBuffer(pdfBuffer, "clientes.pdf");
+  assert.deepEqual(pdfResult.headers, ["Nombre", "Telefono", "Email"]);
+
+  await assert.rejects(() => parseFileBuffer(Buffer.from("contenido"), "clientes.docx"));
 });
 
 test("previewImport arma columnas + muestra + mapeo sugerido", async () => {

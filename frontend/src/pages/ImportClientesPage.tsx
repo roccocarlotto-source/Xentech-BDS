@@ -16,9 +16,9 @@ type Paso = "elegir" | "revisar" | "resultado";
 
 const SAMPLE_ROWS_TO_SHOW = 5;
 
-// Fase 3 del roadmap — importación de clientes. Por ahora solo Excel
-// (.xlsx); TXT y PDF quedan para una siguiente iteración, mismo alcance que
-// el backend (ver src/services/importClientes.service.ts).
+// Fase 3 del roadmap — importación de clientes. Soporta Excel (.xlsx),
+// TXT/CSV y PDF (con tabla de bordes/grilla) — mismo alcance que el backend
+// (ver src/services/importClientes.service.ts).
 //
 // Flujo en dos pasos: se manda el archivo para un preview (columnas +
 // mapeo sugerido + muestra de filas), el usuario ajusta el mapeo en la
@@ -100,13 +100,13 @@ export function ImportClientesPage() {
       {paso === "elegir" && (
         <section className="import-card">
           <p>
-            Subí un archivo Excel (.xlsx), TXT o CSV con tus clientes. PDF todavía no está
-            soportado.
+            Subí un archivo Excel (.xlsx), TXT, CSV o PDF con tus clientes. Para PDF, tiene que
+            traer una tabla con bordes/grilla — si no, probá exportarlo como Excel o CSV.
           </p>
           <input
             type="file"
             aria-label="Archivo de clientes"
-            accept=".xlsx,.txt,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
+            accept=".xlsx,.txt,.csv,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv,application/pdf"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
           />
           <button

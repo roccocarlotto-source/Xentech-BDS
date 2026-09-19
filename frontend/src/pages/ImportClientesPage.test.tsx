@@ -113,6 +113,18 @@ describe("ImportClientesPage", () => {
     expect(uploaded.name).toBe("clientes.txt");
   });
 
+  test("tambien acepta subir un archivo .pdf", async () => {
+    renderPage();
+    await subirArchivo("clientes.pdf");
+
+    await screen.findByRole("button", { name: "Importar 2 clientes" });
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = requestInit.body as FormData;
+    const uploaded = body.get("file") as File;
+    expect(uploaded.name).toBe("clientes.pdf");
+  });
+
   test("el boton de importar esta deshabilitado si no hay columna de nombre mapeada", async () => {
     fetchMock = vi.fn(async () => jsonResponse({ ...previewResponse, suggestedMapping: {} }));
     vi.stubGlobal("fetch", fetchMock);
