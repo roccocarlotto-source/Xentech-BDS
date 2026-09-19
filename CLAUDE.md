@@ -31,10 +31,16 @@
   habilitar/deshabilitar por
   organización los tres tipos de agente (WhatsApp, gestión de base de
   datos, recordatorios) — todavía sin lógica funcional de ningún
-  agente, eso es Fase 5. Verificado de punta a punta contra Supabase
-  Auth + Postgres reales (no mocks) vía el workflow manual
-  `e2e-smoke.yml` — ver `scripts/e2e-smoke.ts`. Falta definir el
-  alcance de Fase 5 (qué hace cada agente en concreto).
+  agente. Verificado de punta a punta contra Supabase Auth + Postgres
+  reales (no mocks) vía el workflow manual `e2e-smoke.yml` — ver
+  `scripts/e2e-smoke.ts`. Fase 5 (lógica real de los agentes),
+  agente por agente, empezando por WhatsApp: diseño completo en
+  `docs/ai-agent-architecture.md` (precedente: el módulo de agentes
+  ya construido en `PlataformaCRM`), con las 3 decisiones de Rocco
+  (2026-09-19: Meta Cloud API directo, config de KB/reglas la hace el
+  propio cliente, v1 = consulta + acciones controladas) — todavía sin
+  empezar la implementación (schema, loop de orquestación, tools, UI
+  de configuración, conexión real de WhatsApp).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
