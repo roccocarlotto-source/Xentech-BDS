@@ -9,6 +9,8 @@ import { clientesRouter } from "./routes/clientes";
 import { clientesImportRouter } from "./routes/clientesImport";
 import { meRouter } from "./routes/me";
 import { adminOrganizationsRouter } from "./routes/adminOrganizations";
+import { agentConfigRouter } from "./routes/agentConfig";
+import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { AppError } from "./utils/AppError";
 
 export function createApp() {
@@ -28,6 +30,8 @@ export function createApp() {
   app.use(clientesImportRouter);
   app.use(clientesRouter);
   app.use(adminOrganizationsRouter);
+  app.use(agentConfigRouter);
+  app.use(knowledgeBaseEntriesRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

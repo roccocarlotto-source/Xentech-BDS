@@ -274,6 +274,11 @@ model KnowledgeBaseEntry {
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
+  // Mismo patrón que Cliente/User: unique compuesta para poder hacer
+  // update/delete acotado a (organizationId, id) desde el repository, sin
+  // depender de una verificación previa aparte para no escribir cruzado
+  // entre tenants.
+  @@unique([organizationId, id])
   @@index([organizationId, isActive])
   @@map("knowledge_base_entries")
 }

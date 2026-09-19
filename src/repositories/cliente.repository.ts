@@ -19,6 +19,18 @@ export const clienteRepository = {
     });
   },
 
+  // Resolución de identidad del agente de WhatsApp (ver
+  // docs/ai-agent-architecture.md §5): matchea por teléfono DENTRO de la
+  // organización dueña del número de WhatsApp que recibió el mensaje. Si
+  // hay más de un cliente con el mismo teléfono (dato sucio, no debería
+  // pasar pero no está garantizado), toma el más reciente antes que fallar.
+  findByTelefono(organizationId: string, telefono: string) {
+    return prisma.cliente.findFirst({
+      where: { organizationId, telefono, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
   create(organizationId: string, data: Omit<Prisma.ClienteUncheckedCreateInput, "organizationId">) {
     return prisma.cliente.create({ data: { ...data, organizationId } });
   },
