@@ -102,3 +102,33 @@ archivo.json ...` y despues `node -e "const d=require('archivo.json'); ..."`
 Si una sesión futura ve el mismo 403 al pegarle a `api.github.com`
 desde el contenedor cloud, no vale la pena reinstalar `gh` ni
 reintentar ahí — ir directo a este flujo con `device_bash`.
+
+## Si `prisma:generate`/`typecheck` falla en Actions: leer el log primero
+
+Aprendido el 2026-09-19 (PR #17), de la forma difícil: varios reruns
+seguidos del MISMO commit dieron resultados distintos (pasó una vez,
+falló varias otras, a veces en `prisma:generate`, a veces recién en
+`typecheck`), lo que llevó a asumir que era `binaries.prisma.sh`
+(descarga del motor de Prisma) flaqueando de forma intermitente en
+los runners de Actions — un problema ya conocido de red, no de
+código. Esa fue una conclusión prematura: cuando finalmente se
+capturó el log completo (agregando temporalmente un paso `if:
+failure()` que abre un issue con el output, como ya hacen
+`db-migrate.yml`/`e2e-smoke.yml`), el error real era `P1012`, un
+schema inválido — `Conversation.organization` sin el campo de
+relación opuesto en `Organization` (`prisma validate`/`generate` lo
+exige siempre, de forma determinística, no es un chequeo de red).
+Los reintentos "pasando" antes probablemente fueron por otra causa
+(cache de npm, engine parcialmente cacheado) que enmascaró el error
+real la mayoría de las veces.
+
+**Moraleja: ante un fallo de `prisma:generate`/`typecheck` en CI, leer
+el log del paso ANTES de asumir flakiness de red y agregar
+reintentos.** `ci.yml` igual quedó con un reintento (3 intentos,
+regenerando el cliente entero en cada vuelta — `rm -rf
+node_modules/.prisma && prisma generate && typecheck` — no solo
+`prisma generate` solo, porque un cliente corrupto no se arregla
+reintentando solo el typecheck) por si la flakiness de red real
+aparece en el futuro, y `db-migrate.yml`/`e2e-smoke.yml` reintentan
+`prisma generate` con el mismo mecanismo simple. Pero el primer paso
+siempre es mirar el error real, no reintentar a ciegas.

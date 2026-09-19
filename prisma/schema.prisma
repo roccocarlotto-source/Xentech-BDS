@@ -43,9 +43,13 @@ model Organization {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  users        User[]
-  clientes     Cliente[]
-  agentToggles OrganizationAgentToggle[]
+  users                User[]
+  clientes             Cliente[]
+  agentToggles         OrganizationAgentToggle[]
+  agentConfigs         AgentConfig[]
+  whatsappConnection   WhatsAppConnection?
+  conversations        Conversation[]
+  knowledgeBaseEntries KnowledgeBaseEntry[]
 
   @@map("organizations")
 }
@@ -102,7 +106,8 @@ model Cliente {
   updatedAt         DateTime           @updatedAt @map("updated_at")
   deletedAt         DateTime?          @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  conversations Conversation[]
 
   @@unique([organizationId, id])
   @@map("clientes")
@@ -123,4 +128,152 @@ model OrganizationAgentToggle {
 
   @@unique([organizationId, agentType])
   @@map("organization_agent_toggles")
+}
+
+// -----------------------------------------------------------------------------
+// Fase 5 — lógica real de los agentes de IA. Diseño completo en
+// docs/ai-agent-architecture.md (precedente: el módulo de agentes ya
+// construido en PlataformaCRM, adaptado a las dos diferencias de Xentech: sin
+// nivel de Branch — todo scoped a Organization — y el corresponsal de
+// WhatsApp es el propio Cliente final, no personal de la empresa).
+// -----------------------------------------------------------------------------
+
+// Comportamiento de un agente para una organización: instrucciones, reglas,
+// tools habilitadas. Tabla APARTE de OrganizationAgentToggle a propósito —
+// el toggle lo escribe el PlatformAdmin (on/off), esto lo escribe el propio
+// tenant (admin de su organización) — actores y autorización distintos.
+model AgentConfig {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  agentType      AgentType @map("agent_type")
+  instructions   String    @db.Text
+  // Ver docs/ai-agent-architecture.md §7. Json a propósito: la forma
+  // (temasProhibidos, accionesProhibidas, condicionesDeDerivacion,
+  // promesasProhibidas, datosRequeridosAntesDeAccion) puede evolucionar sin
+  // migración. accionesProhibidas SÍ se aplica en código (puedeEjecutarTool);
+  // el resto son instrucciones a nivel de prompt, no gates de ejecución.
+  guardrails    Json     @default("{}")
+  enabledTools  String[] @map("enabled_tools")
+  modelProvider String   @map("model_provider") @db.VarChar(50)
+  modelName     String   @map("model_name") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  conversations Conversation[]
+
+  @@unique([organizationId, agentType])
+  @@map("agent_configs")
+}
+
+enum WhatsAppConnectionStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+}
+
+// Una organización = un número de WhatsApp (no hay nivel de Branch en
+// Xentech, a diferencia del CRM). accessTokenEncrypted NUNCA en texto plano
+// — mecanismo de cifrado a definir en la implementación de la conexión real
+// (ver docs/ai-agent-architecture.md §12, decisión abierta).
+model WhatsAppConnection {
+  id                   String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String                   @unique @map("organization_id") @db.Uuid
+  phoneNumberId        String                   @unique @map("phone_number_id") @db.VarChar(50)
+  wabaId               String                   @map("waba_id") @db.VarChar(50)
+  displayPhoneNumber   String?                  @map("display_phone_number") @db.VarChar(30)
+  accessTokenEncrypted String                   @map("access_token_encrypted") @db.Text
+  status               WhatsAppConnectionStatus @default(PENDING)
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("whatsapp_connections")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  TRANSFERRED_TO_HUMAN
+  CLOSED
+}
+
+// clienteId es NULLABLE a propósito (diverge del Contact no-nulo del CRM):
+// Xentech no auto-crea un Cliente para un número no reconocido — la
+// conversación se registra igual, con clienteId NULL, y el agente responde
+// un mensaje genérico configurable (ver docs/ai-agent-architecture.md §5).
+model Conversation {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String             @map("organization_id") @db.Uuid
+  agentConfigId    String             @map("agent_config_id") @db.Uuid
+  clienteId        String?            @map("cliente_id") @db.Uuid
+  externalThreadId String             @map("external_thread_id") @db.VarChar(50)
+  status           ConversationStatus @default(ACTIVE)
+  lastMessageAt    DateTime?          @map("last_message_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  agentConfig  AgentConfig  @relation(fields: [agentConfigId], references: [id])
+  cliente      Cliente?     @relation(fields: [clienteId], references: [id])
+  messages     Message[]
+
+  @@unique([organizationId, agentConfigId, externalThreadId])
+  @@index([organizationId, status])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// CLIENTE (no CONTACT como en el CRM) para calzar con la terminología de
+// dominio de Xentech: quien escribe es el Cliente final.
+enum MessageSenderType {
+  CLIENTE
+  AGENT
+  HUMAN
+}
+
+// organizationId denormalizado (sin FK, igual que en el resto del modelo
+// para columnas de filtrado) para poder scopear/indexar sin pasar por
+// Conversation en cada query.
+model Message {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String            @map("organization_id") @db.Uuid
+  conversationId    String            @map("conversation_id") @db.Uuid
+  direction         MessageDirection
+  senderType        MessageSenderType @map("sender_type")
+  senderUserId      String?           @map("sender_user_id") @db.Uuid
+  content           String            @db.Text
+  toolCalls         Json?             @map("tool_calls")
+  externalMessageId String?           @unique @map("external_message_id") @db.VarChar(100)
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@index([organizationId])
+  @@map("messages")
+}
+
+// Base de conocimiento v1: texto plano con título, sin RAG (ver
+// docs/ai-agent-architecture.md §10). Org-wide a propósito, no por
+// agentType — hoy solo hay un agente con lógica real (WhatsApp); si en el
+// futuro hace falta conocimiento distinto por agente, se agrega ahí.
+model KnowledgeBaseEntry {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  titulo         String    @db.VarChar(200)
+  contenido      String    @db.Text
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, isActive])
+  @@map("knowledge_base_entries")
 }

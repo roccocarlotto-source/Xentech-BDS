@@ -17,8 +17,21 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - run: npm run prisma:generate
-      - run: npm run typecheck
+      # binaries.prisma.sh (descarga del motor de Prisma) flaquea de forma
+      # intermitente desde los runners de Actions -- reintenta antes de
+      # fallar el job por un problema de red externo, no de código. Ver
+      # CLAUDE.md.
+      - name: prisma generate + typecheck (con reintentos)
+        run: |
+          for intento in 1 2 3; do
+            rm -rf node_modules/.prisma
+            if npm run prisma:generate && npm run typecheck; then
+              exit 0
+            fi
+            echo "prisma:generate/typecheck falló (intento $intento/3), reintentando en 15s..."
+            sleep 15
+          done
+          exit 1
       - run: npm run lint
       - run: npm run format:check
       - run: npm test

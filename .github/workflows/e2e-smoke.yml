@@ -33,7 +33,16 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - run: npm run prisma:generate
+      # binaries.prisma.sh flaquea de forma intermitente desde los runners
+      # de Actions (ver CLAUDE.md) -- reintenta antes de fallar el job.
+      - name: prisma generate (con reintentos)
+        run: |
+          for intento in 1 2 3; do
+            npm run prisma:generate && exit 0
+            echo "prisma:generate falló (intento $intento/3), reintentando en 15s..."
+            sleep 15
+          done
+          exit 1
 
       - name: e2e smoke test
         run: npm run e2e:smoke 2>&1 | tee /tmp/e2e-smoke.log
