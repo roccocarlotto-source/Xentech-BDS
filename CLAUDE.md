@@ -23,11 +23,12 @@
   código: repo nuevo, proyectos de frontend/backend independientes).
 - **Status / Phase:** Fases 0-3 completas: fundamentos, CRUD de
   clientes (con cálculo de cuota/atraso), estadística tipo dona,
-  importación de clientes desde Excel (.xlsx) y TXT/CSV con
-  autodetección de delimitador (`/clientes/importar`, preview + mapeo
-  de columnas + revisión). Falta solo PDF en importación (deferido a
-  propósito). Fase 4 (estructura del panel de admin de plataforma)
-  lista: `/admin/organizations` permite habilitar/deshabilitar por
+  importación de clientes desde Excel (.xlsx), TXT/CSV (autodetección
+  de delimitador) y PDF (tabla con bordes/grilla, vía `pdf-parse`) —
+  los tres formatos comparten el mismo flujo de preview + mapeo de
+  columnas + revisión en `/clientes/importar`. Fase 4 (estructura del
+  panel de admin de plataforma) lista: `/admin/organizations` permite
+  habilitar/deshabilitar por
   organización los tres tipos de agente (WhatsApp, gestión de base de
   datos, recordatorios) — todavía sin lógica funcional de ningún
   agente, eso es Fase 5. Hay un proyecto real de Supabase provisionado
