@@ -8,7 +8,7 @@ import { ClientesTable } from "../components/ClientesTable";
 import { StatsDonut } from "../components/StatsDonut";
 
 export function ClientesPage() {
-  const { logout } = useAuth();
+  const { logout, me } = useAuth();
 
   const clientesQuery = useQuery({
     queryKey: ["clientes"],
@@ -26,6 +26,9 @@ export function ClientesPage() {
         <h1>Clientes</h1>
         <div className="clientes-header-actions">
           <Link to="/clientes/importar">Importar clientes</Link>
+          {me?.role === "ADMIN" && !me.isPlatformAdmin && (
+            <Link to="/agente-whatsapp">Agente de WhatsApp</Link>
+          )}
           <button type="button" onClick={() => void logout()}>
             Cerrar sesión
           </button>

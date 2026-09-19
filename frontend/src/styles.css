@@ -430,3 +430,259 @@ body {
   height: 18px;
   cursor: pointer;
 }
+
+/* Configuración del agente de WhatsApp (Fase 5) */
+
+.agent-config-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.agent-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agent-config-header h1 {
+  margin: 0;
+}
+
+.agent-config-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.agent-config-header-actions button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.agent-config-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-config-card h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.agent-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.agent-config-field input,
+.agent-config-field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink-primary);
+  background: var(--surface);
+}
+
+.agent-config-model-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.agent-config-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-config-fieldset legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.agent-config-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.agent-config-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-config-checkbox-group > span {
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.agent-config-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.agent-config-error {
+  color: var(--critical);
+  font-size: 14px;
+  margin: 0;
+}
+
+.agent-config-saved {
+  color: var(--good);
+  font-size: 14px;
+  margin: 0;
+}
+
+.agent-config-card button[type="submit"] {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.agent-config-card button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kb-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.kb-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kb-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.kb-item-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-secondary);
+}
+
+.kb-item-actions button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.kb-item-contenido {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--ink-secondary);
+  white-space: pre-wrap;
+}
+
+.kb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.kb-form button[type="submit"] {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.kb-form button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-transcript li {
+  padding: 10px 12px;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.test-transcript li p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.test-transcript-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+
+.test-transcript-cliente {
+  background: var(--page);
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.test-transcript-agente {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}

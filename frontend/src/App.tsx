@@ -1,10 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { RequireOrgAdmin } from "./auth/RequireOrgAdmin";
 import { useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./pages/LoginPage";
 import { ClientesPage } from "./pages/ClientesPage";
 import { ImportClientesPage } from "./pages/ImportClientesPage";
 import { AdminOrganizationsPage } from "./pages/AdminOrganizationsPage";
+import { AgentConfigPage } from "./pages/AgentConfigPage";
 
 // Un platform admin no pertenece a ninguna organización (organizationId
 // vacío en el AuthContext — ver src/services/auth.service.ts del backend),
@@ -27,6 +29,9 @@ export function App() {
           <Route path="/" element={<HomeRoute />} />
           <Route path="/clientes/importar" element={<ImportClientesPage />} />
           <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
+          <Route element={<RequireOrgAdmin />}>
+            <Route path="/agente-whatsapp" element={<AgentConfigPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
