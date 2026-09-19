@@ -21,14 +21,19 @@
   convenciones que `PlataformaCRM`/`plataforma-crm-frontend`, de los
   que se reutilizan patrones de multi-tenancy y autenticación (no el
   código: repo nuevo, proyectos de frontend/backend independientes).
-- **Status / Phase:** Fases 0-2 completas: fundamentos, CRUD de
-  clientes (con cálculo de cuota/atraso), estadística tipo dona. Fase 3
-  (importación) parcial: Excel listo (`/clientes/importar`, preview +
-  mapeo de columnas + revisión), TXT y PDF todavía no. Hay un proyecto
-  real de Supabase provisionado y schema aplicado, pero falta un
-  usuario de prueba (Auth) y el anon key del proyecto para poder
-  verificar el frontend/CRUD de punta a punta contra datos reales —
-  ver "Próximo paso" en el doc de estado.
+- **Status / Phase:** Fases 0-3 completas: fundamentos, CRUD de
+  clientes (con cálculo de cuota/atraso), estadística tipo dona,
+  importación de clientes desde Excel (.xlsx) y TXT/CSV con
+  autodetección de delimitador (`/clientes/importar`, preview + mapeo
+  de columnas + revisión). Falta solo PDF en importación (deferido a
+  propósito). Fase 4 (estructura del panel de admin de plataforma)
+  lista: `/admin/organizations` permite habilitar/deshabilitar por
+  organización los tres tipos de agente (WhatsApp, gestión de base de
+  datos, recordatorios) — todavía sin lógica funcional de ningún
+  agente, eso es Fase 5. Hay un proyecto real de Supabase provisionado
+  y schema aplicado; ya tenemos el anon key, pero falta un usuario de
+  prueba (Auth) para poder verificar el frontend/CRUD de punta a punta
+  contra datos reales — ver "Próximo paso" en el doc de estado.
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
