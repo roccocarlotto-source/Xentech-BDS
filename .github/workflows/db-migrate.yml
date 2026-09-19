@@ -9,8 +9,18 @@ name: DB Migrate
 # del motor de Prisma (binaries.prisma.sh) esta bloqueada por politica
 # de red tanto en el entorno cloud de Claude como en el dispositivo local
 # de Rocco; en los runners de GitHub Actions no hay esa restriccion.
+#
+# Si el push falla, el job abre un issue con el log completo -- el
+# endpoint de logs "en crudo" de la API de Actions redirige a un blob de
+# Azure que tampoco es alcanzable desde ninguno de los dos entornos de
+# arriba, asi que este es el mecanismo para poder diagnosticar el error
+# real sin acceso a la UI de GitHub.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   db-push:
@@ -25,8 +35,18 @@ jobs:
 
       - run: npm ci
       - run: npm run prisma:generate
+
       - name: prisma db push
-        run: npx prisma db push
+        run: npx prisma db push 2>&1 | tee /tmp/db-push.log
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Reportar error en un issue si falla
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "DB Migrate falló (run ${{ github.run_id }})" \
+            --body-file /tmp/db-push.log
