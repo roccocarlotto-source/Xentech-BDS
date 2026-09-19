@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { ClientesPage } from "./pages/ClientesPage";
+import { ImportClientesPage } from "./pages/ImportClientesPage";
 
 export function App() {
   return (
@@ -10,6 +11,7 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<ClientesPage />} />
+          <Route path="/clientes/importar" element={<ImportClientesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

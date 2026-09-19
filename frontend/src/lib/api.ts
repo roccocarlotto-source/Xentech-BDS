@@ -33,20 +33,7 @@ function buildUrl(path: string): string {
   return `${env.apiUrl}/api${path}`;
 }
 
-export async function request<T>(path: string, options: RequestOptions): Promise<T> {
-  const { body, getAccessToken, headers, ...rest } = options;
-  const token = await getAccessToken();
-
-  const res = await fetch(buildUrl(path), {
-    ...rest,
-    headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
+async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) {
     unauthorizedHandler?.();
     throw new ApiError(401, "No autenticado");
@@ -70,4 +57,47 @@ export async function request<T>(path: string, options: RequestOptions): Promise
   }
 
   return payload as T;
+}
+
+export async function request<T>(path: string, options: RequestOptions): Promise<T> {
+  const { body, getAccessToken, headers, ...rest } = options;
+  const token = await getAccessToken();
+
+  const res = await fetch(buildUrl(path), {
+    ...rest,
+    headers: {
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  return handleResponse<T>(res);
+}
+
+interface RequestFormDataOptions {
+  formData: FormData;
+  getAccessToken: () => Promise<string | null>;
+  signal?: AbortSignal;
+}
+
+// Aparte de request(): un upload de archivo va como multipart/form-data, no
+// JSON, y el Content-Type (con el boundary) lo tiene que poner el browser
+// solo — si lo seteamos nosotros, el boundary no coincide y el backend no
+// puede parsear el body.
+export async function requestFormData<T>(
+  path: string,
+  { formData, getAccessToken, signal }: RequestFormDataOptions,
+): Promise<T> {
+  const token = await getAccessToken();
+
+  const res = await fetch(buildUrl(path), {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+    signal,
+  });
+
+  return handleResponse<T>(res);
 }

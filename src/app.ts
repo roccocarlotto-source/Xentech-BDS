@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import { ZodError } from "zod";
 import { healthRouter } from "./routes/health";
 import { clientesRouter } from "./routes/clientes";
+import { clientesImportRouter } from "./routes/clientesImport";
 import { meRouter } from "./routes/me";
 import { AppError } from "./utils/AppError";
 
@@ -20,6 +21,10 @@ export function createApp() {
 
   app.use(healthRouter);
   app.use(meRouter);
+  // Antes de clientesRouter a propósito: si fuera después, Express
+  // matchearía "import" como :id de GET /api/clientes/:id (mismo motivo que
+  // el orden de /api/clientes/stats dentro de clientes.ts).
+  app.use(clientesImportRouter);
   app.use(clientesRouter);
 
   app.use(

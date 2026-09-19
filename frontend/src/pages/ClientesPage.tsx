@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { request } from "../lib/api";
 import { getAccessToken } from "../auth/getAccessToken";
 import { useAuth } from "../auth/AuthContext";
@@ -23,9 +24,12 @@ export function ClientesPage() {
     <div className="clientes-page">
       <header className="clientes-header">
         <h1>Clientes</h1>
-        <button type="button" onClick={() => void logout()}>
-          Cerrar sesión
-        </button>
+        <div className="clientes-header-actions">
+          <Link to="/clientes/importar">Importar clientes</Link>
+          <button type="button" onClick={() => void logout()}>
+            Cerrar sesión
+          </button>
+        </div>
       </header>
 
       <section className="stats-section">

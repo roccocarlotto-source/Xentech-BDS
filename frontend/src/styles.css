@@ -106,6 +106,12 @@ body {
   margin: 0;
 }
 
+.clientes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .clientes-header button {
   padding: 8px 14px;
   border: 1px solid var(--border);
@@ -237,4 +243,113 @@ body {
 .cuota-badge--sin_datos {
   background: rgba(137, 135, 129, 0.14);
   color: var(--ink-muted);
+}
+
+/* Importar clientes */
+
+.import-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.import-header h1 {
+  margin: 0;
+}
+
+.import-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.import-card button {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.import-card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import-error {
+  color: var(--critical);
+  font-size: 14px;
+}
+
+.import-mapping {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.import-mapping-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}
+
+.import-mapping-row select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--surface);
+}
+
+.import-sample-wrapper {
+  overflow-x: auto;
+}
+
+.import-sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.import-sample-table th,
+.import-sample-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.import-sample-table th {
+  color: var(--ink-secondary);
+  background: var(--page);
+}
+
+.import-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.import-errors-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--critical);
+  font-size: 13px;
 }
