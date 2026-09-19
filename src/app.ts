@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import { ZodError } from "zod";
 import { healthRouter } from "./routes/health";
 import { clientesRouter } from "./routes/clientes";
+import { meRouter } from "./routes/me";
 import { AppError } from "./utils/AppError";
 
 export function createApp() {
@@ -18,6 +19,7 @@ export function createApp() {
   app.use(pinoHttp());
 
   app.use(healthRouter);
+  app.use(meRouter);
   app.use(clientesRouter);
 
   app.use(

@@ -14,15 +14,17 @@
 
 > Editar esta sección a medida que avanza el proyecto.
 
-- **Stack:** Node.js + Express + TypeScript, Prisma ORM, PostgreSQL
-  (Supabase), autenticación Supabase Auth (JWT vía JWKS) — mismo stack
-  que `PlataformaCRM`, del que se reutilizan patrones de multi-tenancy
-  y autenticación (no el código: repo nuevo).
-- **Status / Phase:** Fase 0 (fundamentos) en progreso. Schema inicial
-  (`Organization`, `User`, `PlatformAdmin`, `Cliente`,
-  `OrganizationAgentToggle`), esqueleto de Express con auth y CI
-  armados. Falta: proyecto de Supabase real (DATABASE_URL/JWKS), CRUD
-  de clientes (Fase 1).
+- **Stack:** Backend — Node.js + Express + TypeScript, Prisma ORM,
+  PostgreSQL (Supabase), autenticación Supabase Auth (JWT vía JWKS).
+  Frontend (`frontend/`) — Vite + React + TypeScript, react-router-dom,
+  @tanstack/react-query, @supabase/supabase-js. Mismo stack y
+  convenciones que `PlataformaCRM`/`plataforma-crm-frontend`, de los
+  que se reutilizan patrones de multi-tenancy y autenticación (no el
+  código: repo nuevo, proyectos de frontend/backend independientes).
+- **Status / Phase:** Fases 0-2 completas: fundamentos, CRUD de
+  clientes (con cálculo de cuota/atraso), estadística tipo dona. Hay
+  un proyecto real de Supabase provisionado y schema aplicado. Falta:
+  Fase 3 (importación Excel/TXT/PDF).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.

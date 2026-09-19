@@ -11,7 +11,14 @@ const eslintConfigPrettier = require("eslint-config-prettier");
 
 module.exports = tseslint.config(
   {
-    ignores: ["node_modules/", "dist/", "coverage/"],
+    // "frontend/" tiene su propio eslint.config.js (proyecto Vite/React
+    // independiente, sin workspaces) -- excluirlo acá es necesario, no solo
+    // prolijo: ESLint 10 resuelve el config más cercano por archivo, así que
+    // sin este ignore este linter igual intentaría cargar
+    // frontend/eslint.config.js (y fallar si frontend/node_modules no está
+    // instalado, como en el job "backend" del CI, que nunca corre `npm ci`
+    // dentro de frontend/).
+    ignores: ["node_modules/", "dist/", "coverage/", "frontend/"],
   },
 
   {

@@ -1,0 +1,48 @@
+import { useQuery } from "@tanstack/react-query";
+import { request } from "../lib/api";
+import { getAccessToken } from "../auth/getAccessToken";
+import { useAuth } from "../auth/AuthContext";
+import type { Cliente, ClientesStats } from "../types/cliente";
+import { ClientesTable } from "../components/ClientesTable";
+import { StatsDonut } from "../components/StatsDonut";
+
+export function ClientesPage() {
+  const { logout } = useAuth();
+
+  const clientesQuery = useQuery({
+    queryKey: ["clientes"],
+    queryFn: ({ signal }) => request<Cliente[]>("/clientes", { getAccessToken, signal }),
+  });
+
+  const statsQuery = useQuery({
+    queryKey: ["clientes", "stats"],
+    queryFn: ({ signal }) => request<ClientesStats>("/clientes/stats", { getAccessToken, signal }),
+  });
+
+  return (
+    <div className="clientes-page">
+      <header className="clientes-header">
+        <h1>Clientes</h1>
+        <button type="button" onClick={() => void logout()}>
+          Cerrar sesión
+        </button>
+      </header>
+
+      <section className="stats-section">
+        {statsQuery.isLoading && <p className="page-message">Cargando estadísticas…</p>}
+        {statsQuery.isError && (
+          <p className="page-message">No se pudieron cargar las estadísticas.</p>
+        )}
+        {statsQuery.data && <StatsDonut stats={statsQuery.data} />}
+      </section>
+
+      <section>
+        {clientesQuery.isLoading && <p className="page-message">Cargando clientes…</p>}
+        {clientesQuery.isError && (
+          <p className="page-message">No se pudieron cargar los clientes.</p>
+        )}
+        {clientesQuery.data && <ClientesTable clientes={clientesQuery.data} />}
+      </section>
+    </div>
+  );
+}

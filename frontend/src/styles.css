@@ -1,0 +1,240 @@
+:root {
+  --surface: #fcfcfb;
+  --page: #f9f9f7;
+  --ink-primary: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --border: #e1e0d9;
+  --good: #0ca30c;
+  --critical: #d03b3b;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink-primary);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+
+.page-message {
+  color: var(--ink-secondary);
+  padding: 24px;
+}
+
+/* Login */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.login-card input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.login-card button {
+  margin-top: 8px;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login-error {
+  color: var(--critical);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Clientes */
+
+.clientes-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.clientes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.clientes-header h1 {
+  margin: 0;
+}
+
+.clientes-header button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.stats-section {
+  margin-bottom: 32px;
+}
+
+.stats-donut {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: fit-content;
+}
+
+.stats-donut-total {
+  font-size: 28px;
+  font-weight: 600;
+  fill: var(--ink-primary);
+}
+
+.stats-donut-total-label {
+  font-size: 11px;
+  fill: var(--ink-muted);
+}
+
+.stats-donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}
+
+.stats-donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.clientes-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.clientes-table th,
+.clientes-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.clientes-table th {
+  background: var(--page);
+  color: var(--ink-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.clientes-table tr:last-child td {
+  border-bottom: none;
+}
+
+.notas-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 280px;
+}
+
+.notas-empty {
+  color: var(--ink-muted);
+}
+
+.notas-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: #2a78d6;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.cuota-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cuota-badge--al_dia {
+  background: rgba(12, 163, 12, 0.12);
+  color: var(--good);
+}
+
+.cuota-badge--atrasado {
+  background: rgba(208, 59, 59, 0.12);
+  color: var(--critical);
+}
+
+.cuota-badge--sin_datos {
+  background: rgba(137, 135, 129, 0.14);
+  color: var(--ink-muted);
+}

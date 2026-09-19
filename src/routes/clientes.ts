@@ -25,6 +25,17 @@ clientesRouter.get(
   }),
 );
 
+// Declarado antes de "/api/clientes/:id" a propósito: si fuera después,
+// Express matchearía "stats" como valor de :id y esta ruta nunca se
+// alcanzaría.
+clientesRouter.get(
+  "/api/clientes/stats",
+  asyncHandler(async (req, res) => {
+    const organizationId = requireOrganizationId(req);
+    res.json(await clienteService.statsClientes(organizationId));
+  }),
+);
+
 clientesRouter.get(
   "/api/clientes/:id",
   asyncHandler(async (req, res) => {
