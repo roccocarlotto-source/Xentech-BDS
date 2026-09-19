@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "e2e:smoke": "tsx scripts/e2e-smoke.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

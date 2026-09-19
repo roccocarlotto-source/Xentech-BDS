@@ -1,0 +1,55 @@
+name: E2E Smoke
+
+# Workflow manual (workflow_dispatch): verifica de punta a punta contra
+# Supabase Auth + Postgres REALES, no mocks -- ver scripts/e2e-smoke.ts
+# para el detalle completo de qué hace.
+#
+# Corre acá y no en el entorno cloud de Claude ni en el dispositivo local
+# de Rocco porque el dominio de Supabase está bloqueado por política de
+# red en ambos (mismo motivo que prisma:generate y db-migrate.yml -- ver
+# CLAUDE.md, sección "Acceso a la API de GitHub desde Cowork"). Los
+# runners de GitHub Actions sí tienen salida completa.
+#
+# Si algo falla, el job abre un issue con el detalle (mismo mecanismo que
+# db-migrate.yml, necesario porque el log crudo de la API de Actions
+# redirige a un blob de Azure que tampoco es alcanzable desde ninguno de
+# los dos entornos de arriba).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run prisma:generate
+
+      - name: e2e smoke test
+        run: npm run e2e:smoke 2>&1 | tee /tmp/e2e-smoke.log
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_JWKS_URL: ${{ secrets.SUPABASE_JWKS_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Reportar error en un issue si falla
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "E2E Smoke falló (run ${{ github.run_id }})" \
+            --body-file /tmp/e2e-smoke.log
