@@ -52,9 +52,20 @@
   (gate `RequireOrgAdmin`, espejo del middleware del backend) con
   instructions/modelo/tools/guardrails, CRUD de la base de
   conocimiento, y un panel de prueba contra el endpoint interno.
-  Todavía falta: paso 4 (mecanismo de derivación a humano y inbox de
-  conversaciones), paso 5 (conexión real de WhatsApp: Embedded Signup,
-  webhook y Graph API), paso 6 (normalización de números de teléfono).
+  Paso 4 (mecanismo de derivación a humano e inbox de conversaciones —
+  PR #24 backend, PR #25 frontend) también completo, con dos
+  decisiones de Rocco (2026-09-19, vía AskUserQuestion): se construyó
+  el inbox ANTES que la conexión real de WhatsApp (paso 5) — las
+  respuestas de una persona quedan guardadas pero pendientes de
+  enviar hasta que esa conexión exista —, y el acceso es un permiso
+  puntual por usuario (`User.canHandleInbox`, otorgado por el admin
+  vía `/usuarios`), no un rol nuevo; el admin de la organización
+  siempre tiene acceso. Rutas `/api/conversations` (lista con filtro
+  `?status=`, detalle, responder, cerrar/devolver al agente) y
+  `/api/users` (gestión del permiso), gate `requireInboxAccess`.
+  Frontend: `/inbox` y `/usuarios`. Todavía falta: paso 5 (conexión
+  real de WhatsApp: Embedded Signup, webhook y Graph API), paso 6
+  (normalización de números de teléfono).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
