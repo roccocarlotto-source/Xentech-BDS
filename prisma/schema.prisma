@@ -63,6 +63,14 @@ model User {
   organizationId String    @map("organization_id") @db.Uuid
   email          String    @db.VarChar(255)
   role           UserRole  @default(MEMBER)
+  // Fase 5, paso 4 (docs/ai-agent-architecture.md §8): permiso puntual que
+  // el admin de la organización otorga a un MEMBER para que pueda ver y
+  // responder el inbox de conversaciones derivadas a un humano -- decisión
+  // de Rocco, ver el bullet "Estado actual" del 2026-09-19. El admin de la
+  // organización SIEMPRE tiene acceso al inbox (ver requireInboxAccess),
+  // este flag solo amplía el acceso a otros usuarios; no aplica a
+  // PlatformAdmin, que no tiene fila en esta tabla.
+  canHandleInbox Boolean   @default(false) @map("can_handle_inbox")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
@@ -219,6 +227,10 @@ model Conversation {
   messages     Message[]
 
   @@unique([organizationId, agentConfigId, externalThreadId])
+  // Fase 5, paso 4: mismo patrón que Cliente/User/KnowledgeBaseEntry --
+  // unique compuesta para poder resolver una conversación puntual del
+  // inbox acotada a (organizationId, id) desde el repository.
+  @@unique([organizationId, id])
   @@index([organizationId, status])
   @@map("conversations")
 }

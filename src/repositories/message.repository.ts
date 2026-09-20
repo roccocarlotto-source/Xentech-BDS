@@ -26,4 +26,14 @@ export const messageRepository = {
     });
     return mensajes.reverse();
   },
+
+  // Historial completo, sin truncar -- para el inbox (Fase 5, paso 4), a
+  // diferencia de listByConversation que trunca para la ventana de
+  // contexto del LLM.
+  listAllByConversation(conversationId: string) {
+    return prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "asc" },
+    });
+  },
 };

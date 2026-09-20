@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Request, Response } from "express";
-import { requirePlatformAdmin, requireOrgAdmin } from "./authorize";
+import { requirePlatformAdmin, requireOrgAdmin, requireInboxAccess } from "./authorize";
 import { AppError } from "../utils/AppError";
 import type { AuthContext } from "../types/auth";
 
@@ -15,6 +15,7 @@ test("requirePlatformAdmin deja pasar a un platform admin", () => {
     organizationId: "",
     role: "ADMIN",
     isPlatformAdmin: true,
+    canHandleInbox: false,
   };
   let llamadoNext = false;
 
@@ -31,6 +32,7 @@ test("requirePlatformAdmin rechaza a un usuario de tenant con 403", () => {
     organizationId: "org1",
     role: "ADMIN",
     isPlatformAdmin: false,
+    canHandleInbox: false,
   };
 
   assert.throws(
@@ -52,6 +54,7 @@ test("requireOrgAdmin deja pasar a un ADMIN de su propia organización", () => {
     organizationId: "org1",
     role: "ADMIN",
     isPlatformAdmin: false,
+    canHandleInbox: false,
   };
   let llamadoNext = false;
 
@@ -68,6 +71,7 @@ test("requireOrgAdmin rechaza a un MEMBER de la organización", () => {
     organizationId: "org1",
     role: "MEMBER",
     isPlatformAdmin: false,
+    canHandleInbox: false,
   };
 
   assert.throws(
@@ -82,6 +86,7 @@ test("requireOrgAdmin rechaza a un platform admin (no es admin de NINGUNA organi
     organizationId: "",
     role: "ADMIN",
     isPlatformAdmin: true,
+    canHandleInbox: false,
   };
 
   assert.throws(
@@ -93,6 +98,77 @@ test("requireOrgAdmin rechaza a un platform admin (no es admin de NINGUNA organi
 test("requireOrgAdmin rechaza si no hay auth resuelto", () => {
   assert.throws(
     () => requireOrgAdmin(reqConAuth(undefined), {} as Response, () => undefined),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
+test("requireInboxAccess deja pasar a un ADMIN de su organización aunque no tenga el flag", () => {
+  const auth: AuthContext = {
+    userId: "u1",
+    organizationId: "org1",
+    role: "ADMIN",
+    isPlatformAdmin: false,
+    canHandleInbox: false,
+  };
+  let llamadoNext = false;
+
+  requireInboxAccess(reqConAuth(auth), {} as Response, () => {
+    llamadoNext = true;
+  });
+
+  assert.equal(llamadoNext, true);
+});
+
+test("requireInboxAccess deja pasar a un MEMBER con el permiso otorgado", () => {
+  const auth: AuthContext = {
+    userId: "u1",
+    organizationId: "org1",
+    role: "MEMBER",
+    isPlatformAdmin: false,
+    canHandleInbox: true,
+  };
+  let llamadoNext = false;
+
+  requireInboxAccess(reqConAuth(auth), {} as Response, () => {
+    llamadoNext = true;
+  });
+
+  assert.equal(llamadoNext, true);
+});
+
+test("requireInboxAccess rechaza a un MEMBER sin el permiso otorgado", () => {
+  const auth: AuthContext = {
+    userId: "u1",
+    organizationId: "org1",
+    role: "MEMBER",
+    isPlatformAdmin: false,
+    canHandleInbox: false,
+  };
+
+  assert.throws(
+    () => requireInboxAccess(reqConAuth(auth), {} as Response, () => undefined),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
+test("requireInboxAccess rechaza a un platform admin", () => {
+  const auth: AuthContext = {
+    userId: "u1",
+    organizationId: "",
+    role: "ADMIN",
+    isPlatformAdmin: true,
+    canHandleInbox: false,
+  };
+
+  assert.throws(
+    () => requireInboxAccess(reqConAuth(auth), {} as Response, () => undefined),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
+test("requireInboxAccess rechaza si no hay auth resuelto", () => {
+  assert.throws(
+    () => requireInboxAccess(reqConAuth(undefined), {} as Response, () => undefined),
     (err: unknown) => err instanceof AppError && err.status === 403,
   );
 });

@@ -14,7 +14,13 @@ export async function resolveAuthContext(payload: JWTPayload): Promise<AuthConte
 
   const platformAdmin = await prisma.platformAdmin.findUnique({ where: { id: userId } });
   if (platformAdmin) {
-    return { userId, organizationId: "", role: "ADMIN", isPlatformAdmin: true };
+    return {
+      userId,
+      organizationId: "",
+      role: "ADMIN",
+      isPlatformAdmin: true,
+      canHandleInbox: false,
+    };
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -27,5 +33,6 @@ export async function resolveAuthContext(payload: JWTPayload): Promise<AuthConte
     organizationId: user.organizationId,
     role: user.role,
     isPlatformAdmin: false,
+    canHandleInbox: user.canHandleInbox,
   };
 }
