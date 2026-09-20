@@ -26,8 +26,14 @@ export function ClientesPage() {
         <h1>Clientes</h1>
         <div className="clientes-header-actions">
           <Link to="/clientes/importar">Importar clientes</Link>
+          {me && !me.isPlatformAdmin && (me.role === "ADMIN" || me.canHandleInbox) && (
+            <Link to="/inbox">Inbox</Link>
+          )}
           {me?.role === "ADMIN" && !me.isPlatformAdmin && (
-            <Link to="/agente-whatsapp">Agente de WhatsApp</Link>
+            <>
+              <Link to="/agente-whatsapp">Agente de WhatsApp</Link>
+              <Link to="/usuarios">Usuarios</Link>
+            </>
           )}
           <button type="button" onClick={() => void logout()}>
             Cerrar sesión

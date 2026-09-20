@@ -20,6 +20,10 @@ export interface MeResponse {
   organizationId: string;
   role: "ADMIN" | "MEMBER";
   isPlatformAdmin: boolean;
+  // Fase 5, paso 4: permiso puntual para el inbox de conversaciones
+  // derivadas (ver User.canHandleInbox del backend). Siempre false para un
+  // platform admin.
+  canHandleInbox: boolean;
 }
 
 export type AuthStatus =
