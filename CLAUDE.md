@@ -47,11 +47,14 @@
   prueba (`POST /api/agent-config/:agentType/test-message`) y CRUD de
   `AgentConfig`/`KnowledgeBaseEntry` (con `requireOrgAdmin`, nuevo
   middleware — configura el propio admin de la organización, no el
-  admin de plataforma). Falta: paso 3 (pantalla de configuración del
-  tenant en `frontend/`), paso 4 (mecanismo de derivación a humano +
-  inbox de conversaciones), paso 5 (conexión real de WhatsApp —
-  Embedded Signup + webhook + Graph API), paso 6 (normalización de
-  números de teléfono).
+  admin de plataforma). Paso 3 (pantalla de configuración del tenant en
+  `frontend/` — PR #22) también completo: ruta `/agente-whatsapp`
+  (gate `RequireOrgAdmin`, espejo del middleware del backend) con
+  instructions/modelo/tools/guardrails, CRUD de la base de
+  conocimiento, y un panel de prueba contra el endpoint interno.
+  Todavía falta: paso 4 (mecanismo de derivación a humano y inbox de
+  conversaciones), paso 5 (conexión real de WhatsApp: Embedded Signup,
+  webhook y Graph API), paso 6 (normalización de números de teléfono).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
