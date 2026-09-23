@@ -60,6 +60,7 @@ export interface OrchestratorDeps {
       direction: MessageDirection;
       senderType: MessageSenderType;
       content: string;
+      externalMessageId?: string;
     }) => Promise<Message>;
     listByConversation: (conversationId: string, limit?: number) => Promise<Message[]>;
   };
@@ -109,6 +110,11 @@ export interface HandleIncomingMessageParams {
   telefonoCliente?: string;
   mensaje: string;
   llmProvider: LlmProvider;
+  // Id del mensaje en el canal de origen (ej. el id de WhatsApp) -- se
+  // persiste en el Message entrante para poder deduplicar reintentos del
+  // proveedor (ver AgentInboundJob en schema.prisma). Opcional: el
+  // endpoint de prueba (sin canal real detrás) no tiene uno.
+  externalMessageId?: string;
 }
 
 export interface HandleIncomingMessageResult {
@@ -122,8 +128,15 @@ export async function handleIncomingMessage(
   params: HandleIncomingMessageParams,
   deps: OrchestratorDeps = defaultDeps,
 ): Promise<HandleIncomingMessageResult> {
-  const { organizationId, agentType, externalThreadId, telefonoCliente, mensaje, llmProvider } =
-    params;
+  const {
+    organizationId,
+    agentType,
+    externalThreadId,
+    telefonoCliente,
+    mensaje,
+    llmProvider,
+    externalMessageId,
+  } = params;
 
   // 1. Config del agente -- sin esto no hay nada que hacer.
   const agentConfig = await deps.agentConfigRepository.findByOrgAndType(organizationId, agentType);
@@ -158,6 +171,7 @@ export async function handleIncomingMessage(
     direction: "INBOUND" satisfies MessageDirection,
     senderType: "CLIENTE" satisfies MessageSenderType,
     content: mensaje,
+    externalMessageId,
   });
 
   // 3. System prompt = instructions + base de conocimiento activa + guardrails.

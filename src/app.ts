@@ -14,6 +14,7 @@ import { agentConfigRouter } from "./routes/agentConfig";
 import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { usersRouter } from "./routes/users";
 import { conversationsRouter } from "./routes/conversations";
+import { whatsappWebhookRouter } from "./routes/webhooks/whatsapp";
 import { AppError } from "./utils/AppError";
 import { parseAllowedOrigins } from "./lib/corsOrigins";
 import { getRateLimitOptions } from "./lib/rateLimitConfig";
@@ -28,10 +29,21 @@ export function createApp() {
   // docs/ai-agent-architecture.md §12), es la protección base contra abuso.
   app.use(rateLimit(getRateLimitOptions()));
   app.use(compression());
-  app.use(express.json());
+  // `verify` guarda el body crudo en req.rawBody -- lo necesita el webhook
+  // de WhatsApp (src/routes/webhooks/whatsapp.ts) para validar la firma
+  // X-Hub-Signature-256, que es un HMAC sobre los bytes tal cual llegaron,
+  // no sobre el JSON ya parseado. No afecta a ninguna otra ruta.
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as express.Request).rawBody = buf;
+      },
+    }),
+  );
   app.use(pinoHttp());
 
   app.use(healthRouter);
+  app.use(whatsappWebhookRouter);
   app.use(meRouter);
   // Antes de clientesRouter a propósito: si fuera después, Express
   // matchearía "import" como :id de GET /api/clientes/:id (mismo motivo que

@@ -69,9 +69,24 @@
   UY configurable) usada por `clienteRepository.findByTelefono`
   (compara en memoria, dato existente sin backfill) y por
   `create`/`update` (alta manual, importación y la tool
-  `actualizar_mi_telefono` guardan el dato ya normalizado). Todavía
-  falta: paso 5 (conexión real de WhatsApp: Embedded Signup, webhook y
-  Graph API) — único paso pendiente de Fase 5.
+  `actualizar_mi_telefono` guardan el dato ya normalizado). Paso 5
+  (conexión real de WhatsApp — PRs #30/#31/#32) con todo el código
+  armado y testeado, pero SIN probar de punta a punta todavía —
+  falta el trámite de Meta Business (Embedded Signup) para tener
+  credenciales reales, que depende de Rocco. Lo que ya existe:
+  encriptación del token (`src/lib/whatsapp/tokenCrypto.ts`, AES-256-GCM,
+  requiere `WHATSAPP_TOKEN_ENCRYPTION_KEY`), verificación de firma y
+  handshake del webhook (`webhookVerification.ts`), cliente de envío
+  por Graph API (`graphApiClient.ts`), extracción de mensajes del
+  payload de Meta (`webhookPayload.ts`), la cola de procesamiento —
+  tabla + poller simple, `AgentInboundJob` en el schema, arrancado
+  desde `server.ts` cada 5s — y la ruta real
+  `POST/GET /api/webhooks/whatsapp` (sin `authenticate`, la identidad
+  la da la firma/verify_token de Meta). El envío real de la respuesta
+  pasa en el poller (`inboundJobProcessor.ts`), no en el handler del
+  webhook. Decisión propia (documentada como tal, reemplazable sin
+  tocar el resto): AES-256-GCM para el token y tabla+poller para la
+  cola, ambas eran "decisiones abiertas" del doc de arquitectura.
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
