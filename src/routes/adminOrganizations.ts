@@ -3,7 +3,9 @@ import { authenticate } from "../middlewares/authenticate";
 import { requirePlatformAdmin } from "../middlewares/authorize";
 import { asyncHandler } from "../utils/asyncHandler";
 import { agentTypeSchema, setAgentToggleSchema } from "../schemas/agentToggle.schema";
+import { createOrganizationSchema } from "../schemas/organization.schema";
 import * as agentToggleService from "../services/agentToggle.service";
+import { createOrganization } from "../services/organization.service";
 
 // Panel de admin de plataforma (Fase 4): listar organizaciones y
 // habilitar/deshabilitar agentes de IA por una. Sin lógica funcional de
@@ -17,6 +19,15 @@ adminOrganizationsRouter.get(
   "/api/admin/organizations",
   asyncHandler(async (_req, res) => {
     res.json(await agentToggleService.listOrganizationsWithToggles());
+  }),
+);
+
+adminOrganizationsRouter.post(
+  "/api/admin/organizations",
+  asyncHandler(async (req, res) => {
+    const { name } = createOrganizationSchema.parse(req.body);
+    const organization = await createOrganization(name);
+    res.status(201).json(organization);
   }),
 );
 

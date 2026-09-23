@@ -395,6 +395,36 @@ body {
   cursor: pointer;
 }
 
+.admin-create-org-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.admin-create-org-form input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.admin-create-org-form button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.admin-create-org-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;

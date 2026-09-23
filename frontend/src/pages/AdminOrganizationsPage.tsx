@@ -1,10 +1,12 @@
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { request } from "../lib/api";
+import { ApiError, request } from "../lib/api";
 import { getAccessToken } from "../auth/getAccessToken";
 import { useAuth } from "../auth/AuthContext";
 import {
   AGENT_TYPES,
   AGENT_TYPE_LABELS,
+  type Organization,
   type OrganizationAgentToggles,
 } from "../types/adminOrganization";
 
@@ -16,12 +18,38 @@ const ADMIN_ORGANIZATIONS_QUERY_KEY = ["admin", "organizations"] as const;
 export function AdminOrganizationsPage() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
+  const [nombreNuevaOrg, setNombreNuevaOrg] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const organizationsQuery = useQuery({
     queryKey: ADMIN_ORGANIZATIONS_QUERY_KEY,
     queryFn: ({ signal }) =>
       request<OrganizationAgentToggles[]>("/admin/organizations", { getAccessToken, signal }),
   });
+
+  const createMutation = useMutation({
+    mutationFn: (name: string) =>
+      request<Organization>("/admin/organizations", {
+        method: "POST",
+        body: { name },
+        getAccessToken,
+      }),
+    onSuccess: () => {
+      setNombreNuevaOrg("");
+      void queryClient.invalidateQueries({ queryKey: ADMIN_ORGANIZATIONS_QUERY_KEY });
+    },
+  });
+
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    if (!nombreNuevaOrg.trim()) return;
+    setCreateError(null);
+    try {
+      await createMutation.mutateAsync(nombreNuevaOrg.trim());
+    } catch (err) {
+      setCreateError(err instanceof ApiError ? err.message : "No se pudo crear la organización.");
+    }
+  }
 
   const toggleMutation = useMutation({
     mutationFn: ({
@@ -51,6 +79,24 @@ export function AdminOrganizationsPage() {
           Cerrar sesión
         </button>
       </header>
+
+      <form className="admin-create-org-form" onSubmit={(e) => void handleCreate(e)}>
+        <label htmlFor="nueva-org-nombre" className="sr-only">
+          Nueva organización
+        </label>
+        <input
+          id="nueva-org-nombre"
+          type="text"
+          required
+          value={nombreNuevaOrg}
+          onChange={(e) => setNombreNuevaOrg(e.target.value)}
+          placeholder="Nombre de la organización"
+        />
+        <button type="submit" disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Creando…" : "Crear"}
+        </button>
+      </form>
+      {createError && <p className="agent-config-error">{createError}</p>}
 
       {organizationsQuery.isLoading && <p className="page-message">Cargando organizaciones…</p>}
       {organizationsQuery.isError && (
