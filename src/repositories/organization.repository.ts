@@ -17,4 +17,12 @@ export const organizationRepository = {
       where: { id: organizationId, deletedAt: null },
     });
   },
+
+  findBySlug(slug: string) {
+    return prisma.organization.findFirst({ where: { slug, deletedAt: null } });
+  },
+
+  create(data: { name: string; slug: string }) {
+    return prisma.organization.create({ data });
+  },
 };

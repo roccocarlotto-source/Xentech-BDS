@@ -41,10 +41,14 @@ describe("AdminOrganizationsPage", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    fetchMock = vi.fn(async (input: string | URL | Request) => {
+    fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/admin/organizations/") && url.includes("/agent-toggles/")) {
         return { status: 204, ok: true, json: async () => null } as Response;
+      }
+      if (url.endsWith("/admin/organizations") && init?.method === "POST") {
+        const body = JSON.parse(init.body as string) as { name: string };
+        return jsonResponse({ id: "org-2", name: body.name, slug: "org-2" }, 201);
       }
       if (url.endsWith("/admin/organizations")) return jsonResponse(organizaciones);
       throw new Error(`fetch inesperado: ${url}`);
@@ -89,5 +93,50 @@ describe("AdminOrganizationsPage", () => {
     expect(url).toContain("/admin/organizations/org-1/agent-toggles/DATABASE_MANAGEMENT");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body as string)).toEqual({ enabled: true });
+  });
+
+  test("crear una organización manda el POST correcto y limpia el input", async () => {
+    renderPage();
+    await screen.findByText("Acme SA");
+
+    const input = screen.getByLabelText("Nueva organización");
+    await userEvent.type(input, "Organización Nueva");
+    await userEvent.click(screen.getByRole("button", { name: "Crear" }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        (call) => String(call[0]).endsWith("/admin/organizations") && call[1]?.method === "POST",
+      );
+      expect(call).toBeDefined();
+    });
+
+    const call = fetchMock.mock.calls.find(
+      (call) => String(call[0]).endsWith("/admin/organizations") && call[1]?.method === "POST",
+    ) as [string, RequestInit];
+    expect(JSON.parse(call[1].body as string)).toEqual({ name: "Organización Nueva" });
+    expect(input).toHaveValue("");
+  });
+
+  test("si crear falla, muestra el mensaje de error del backend", async () => {
+    fetchMock.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/admin/organizations") && init?.method === "POST") {
+        return {
+          status: 400,
+          ok: false,
+          json: async () => ({ error: "Datos inválidos" }),
+        } as Response;
+      }
+      if (url.endsWith("/admin/organizations")) return jsonResponse(organizaciones);
+      throw new Error(`fetch inesperado: ${url}`);
+    });
+
+    renderPage();
+    await screen.findByText("Acme SA");
+
+    await userEvent.type(screen.getByLabelText("Nueva organización"), "X");
+    await userEvent.click(screen.getByRole("button", { name: "Crear" }));
+
+    expect(await screen.findByText("Datos inválidos")).toBeInTheDocument();
   });
 });

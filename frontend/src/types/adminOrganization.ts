@@ -15,3 +15,9 @@ export interface OrganizationAgentToggles {
   organizationName: string;
   toggles: Record<AgentType, boolean>;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+}
