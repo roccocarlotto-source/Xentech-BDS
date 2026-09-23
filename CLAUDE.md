@@ -63,9 +63,15 @@
   siempre tiene acceso. Rutas `/api/conversations` (lista con filtro
   `?status=`, detalle, responder, cerrar/devolver al agente) y
   `/api/users` (gestión del permiso), gate `requireInboxAccess`.
-  Frontend: `/inbox` y `/usuarios`. Todavía falta: paso 5 (conexión
-  real de WhatsApp: Embedded Signup, webhook y Graph API), paso 6
-  (normalización de números de teléfono).
+  Frontend: `/inbox` y `/usuarios`. Paso 6 (normalización de números
+  de teléfono — PR #27) también completo: `normalizarTelefono()` en
+  `src/utils/telefono.ts` (vía `libphonenumber-js`, a E.164, default
+  UY configurable) usada por `clienteRepository.findByTelefono`
+  (compara en memoria, dato existente sin backfill) y por
+  `create`/`update` (alta manual, importación y la tool
+  `actualizar_mi_telefono` guardan el dato ya normalizado). Todavía
+  falta: paso 5 (conexión real de WhatsApp: Embedded Signup, webhook y
+  Graph API) — único paso pendiente de Fase 5.
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
