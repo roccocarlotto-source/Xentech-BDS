@@ -1,6 +1,7 @@
 import compression from "compression";
 import cors from "cors";
 import express from "express";
+import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { ZodError } from "zod";
@@ -14,12 +15,18 @@ import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { usersRouter } from "./routes/users";
 import { conversationsRouter } from "./routes/conversations";
 import { AppError } from "./utils/AppError";
+import { parseAllowedOrigins } from "./lib/corsOrigins";
+import { getRateLimitOptions } from "./lib/rateLimitConfig";
 
 export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
+  app.use(cors({ origin: parseAllowedOrigins(process.env.CORS_ORIGINS) }));
+  // Límite genérico por IP para toda la API -- ver src/lib/rateLimitConfig.ts.
+  // No es el rate limiting específico del loop del agente de IA (pendiente,
+  // docs/ai-agent-architecture.md §12), es la protección base contra abuso.
+  app.use(rateLimit(getRateLimitOptions()));
   app.use(compression());
   app.use(express.json());
   app.use(pinoHttp());
