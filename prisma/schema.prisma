@@ -50,6 +50,7 @@ model Organization {
   whatsappConnection   WhatsAppConnection?
   conversations        Conversation[]
   knowledgeBaseEntries KnowledgeBaseEntry[]
+  agentInboundJobs     AgentInboundJob[]
 
   @@map("organizations")
 }
@@ -198,6 +199,57 @@ model WhatsAppConnection {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@map("whatsapp_connections")
+}
+
+enum AgentInboundJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+// Cola de procesamiento del webhook (docs/ai-agent-architecture.md §4/§10,
+// decisión abierta de §12): tabla + poller simple, no BullMQ/Redis -- para
+// el volumen esperado de un MVP alcanza con esto (mismo criterio que
+// statsClientes()/findByTelefono() en otros lados del repo: no optimizar
+// antes de que el volumen real lo justifique). El handler del webhook
+// (src/routes/webhooks/whatsapp.ts) valida la firma y encola acá sin
+// bloquear la respuesta; el poller (src/lib/whatsapp/inboundJobPoller.ts)
+// la procesa aparte, llamando al orquestador y — recién ahí — mandando la
+// respuesta real por la Graph API.
+//
+// Diseñada para cualquier canal, no solo WhatsApp (organizationId +
+// agentType + externalThreadId + mensaje es justo lo que pide
+// handleIncomingMessage), aunque hoy solo la usa WhatsApp.
+//
+// externalMessageId es la deduplicación (§4: "persiste el Message
+// entrante, deduplicado por externalMessageId") -- se aplica ACÁ, al
+// encolar, en vez de al persistir el Message en sí: el orquestador ya
+// persiste el Message entrante como parte de handleIncomingMessage()
+// (desde el paso 2), así que agregar una segunda persistencia en el
+// webhook duplicaría la fila. La unique constraint es la misma garantía
+// de idempotencia igual: un reintento de Meta con el mismo
+// externalMessageId choca acá (P2002) y el handler lo trata como ya
+// encolado, sin tocar el orquestador.
+model AgentInboundJob {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String                 @map("organization_id") @db.Uuid
+  agentType         AgentType              @map("agent_type")
+  externalThreadId  String                 @map("external_thread_id") @db.VarChar(50)
+  telefonoCliente   String?                @map("telefono_cliente") @db.VarChar(30)
+  mensaje           String                 @db.Text
+  externalMessageId String                 @unique @map("external_message_id") @db.VarChar(100)
+  status            AgentInboundJobStatus  @default(PENDING)
+  attempts          Int                    @default(0)
+  lastError         String?                @map("last_error") @db.Text
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  processedAt       DateTime?              @map("processed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("agent_inbound_jobs")
 }
 
 enum ConversationStatus {
