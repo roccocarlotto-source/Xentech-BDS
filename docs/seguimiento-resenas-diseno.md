@@ -271,6 +271,26 @@ Explícitamente NO cubierto en este paso (queda para pasos siguientes):
 - **Controles de contenido de Word:** §6.2 pide extraerlos de forma determinística antes de recurrir a la IA, si la plantilla los usa. Este paso llama a la IA siempre sobre el texto plano de mammoth; no se investigó si Rocco usa plantillas con controles de contenido.
 - **Presupuesto de ejemplo real:** sigue pendiente (§6.2) — sin uno, no se puede ajustar la extracción contra un caso real ni saber si el prompt/schema actual sirve.
 
+### Estado de la etapa 4, paso 2: revisión + guardado (2026-09-25)
+
+Hecha, en código -- con esto la etapa 4 queda usable de punta a punta (§7: "cada etapa debe quedar usable por sí sola"):
+
+- **`POST /api/presupuestos/import/commit`** (mismo router y gate que `/preview`): recibe JSON (no el archivo -- el `.docx` no se vuelve a subir) con lo que la persona confirmó en la pantalla de revisión, y crea `Cliente` (si eligió "nuevo"), `Presupuesto` y su(s) `Consentimiento`(s) en una sola transacción (`src/repositories/presupuesto.repository.ts`).
+- **Cliente:** existente (elegido de la lista) o nuevo, cargado ahí mismo -- mismos campos que el alta manual (`createClienteSchema`). El backend valida que un `clienteId` existente sea de la organización que hace el request.
+- **`vendedorId`:** opcional, valida contra `User` de la organización si se manda -- pero **el frontend todavía no lo pide** (`/api/users` es solo para el admin de la organización, y esta pantalla es para cualquier usuario; falta decidir cómo exponerlo sin ese gate). El nombre del vendedor tal como vino del `.docx` queda en `datosExtraidos` igual.
+- **Consentimiento de email:** se registra SIEMPRE al crear el presupuesto (`RELACION_PRESUPUESTO_EMAIL`), tenga o no el cliente un email cargado -- decisión propia, sigue el comentario de `Consentimiento` en `prisma/schema.prisma` ("es parte de la relación precontractual"), a confirmar por Rocco.
+- **Consentimiento de WhatsApp:** `seguimientoWhatsapp` (sí/no, sin default) es obligatorio; si es sí, la pantalla exige elegir uno de los DOS orígenes que tiene sentido marcar acá mismo (`WHATSAPP_ENTRANTE` o `VERBAL_VENDEDOR`) -- el tercero (`RESPUESTA_WHATSAPP`) lo registrará el sistema más adelante, a partir de un mensaje entrante real, no desde esta pantalla.
+- **Archivo original:** NO se persiste -- `Presupuesto.archivoPath` queda `null` (sigue sin existir el bucket de Supabase Storage, comentario del schema); solo se guarda `archivoNombre`.
+- **Frontend:** `/presupuestos/importar` (mismo gate que `/resenas`), con link desde `/` -- dos pasos (elegir archivo → revisar y confirmar), sugiere un `Cliente` existente por coincidencia de teléfono contra el draft de la IA, precarga los campos editables, y no deja guardar sin elegir sí/no de WhatsApp (ni sin el origen, si es sí).
+- Tests: `presupuestoImport.service.test.ts` (repos en memoria, nunca Prisma real) + `ImportPresupuestosPage.test.tsx` (fetch mockeado). Todo el backend (178 tests) y todo el frontend (43 tests) en verde, typecheck/lint/format en verde en los dos.
+
+Pendiente:
+
+- **Archivo original en Storage:** falta decidir y armar el bucket de Supabase Storage (§2 ya lo marcaba como no bloqueante para construir/testear).
+- **Selector de vendedor en el frontend:** bloqueado por el gate de `/api/users` (solo admin) -- decidir si se abre un endpoint más chico (ej. `/api/users/vendedores`, sin admin) o se deja así.
+- **Presupuesto de ejemplo real** (arrastrado del paso 1): sigue sin llegar.
+- **Motor de seguimiento (etapa 5):** todavía no consume nada de esto -- un `Presupuesto` creado hoy no genera ningún `Envio` todavía (eso es la etapa 5, "motor de seguimiento por email").
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.

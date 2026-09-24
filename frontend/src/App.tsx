@@ -6,6 +6,7 @@ import { useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./pages/LoginPage";
 import { ClientesPage } from "./pages/ClientesPage";
 import { ImportClientesPage } from "./pages/ImportClientesPage";
+import { ImportPresupuestosPage } from "./pages/ImportPresupuestosPage";
 import { AdminOrganizationsPage } from "./pages/AdminOrganizationsPage";
 import { AgentConfigPage } from "./pages/AgentConfigPage";
 import { InboxPage } from "./pages/InboxPage";
@@ -52,6 +53,7 @@ export function App() {
           </Route>
           <Route element={<RequireAgente agentType="SEGUIMIENTO_RESENAS" />}>
             <Route path="/resenas" element={<ResenasPage />} />
+            <Route path="/presupuestos/importar" element={<ImportPresupuestosPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
