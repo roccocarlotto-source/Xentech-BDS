@@ -1,11 +1,17 @@
 import type { ConsentimientoOrigen, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { calcularEnviosEmail } from "../lib/seguimiento/envioScheduling";
 
 // Etapa 4, paso 2 de docs/seguimiento-resenas-diseno.md: alta de un
 // Presupuesto desde la pantalla de revisión, con sus Consentimiento(s) en
 // la MISMA transacción -- un Presupuesto sin su consentimiento de email
 // (§5: "parte de la relación precontractual", registrado siempre) no
 // debería poder existir.
+//
+// Etapa 5, paso 1: la misma transacción también programa los `Envio` de
+// email de la secuencia de seguimiento (§6.3) -- un Presupuesto sin sus
+// Envio programados se quedaría sin seguimiento para siempre, mismo
+// argumento que el consentimiento de email.
 
 export interface CrearPresupuestoInput {
   organizationId: string;
@@ -81,6 +87,37 @@ export const presupuestoRepository = {
           },
         });
       }
+
+      // Etapa 5, paso 1 (§6.3): programa la secuencia de email -- SOLO
+      // email, WhatsApp es la etapa 6. Sin fila de ConfigSeguimiento
+      // todavía (no hay panel para cargarla -- etapa 8), se usan los
+      // mismos defaults que el schema de Prisma. Referencia de "el envío
+      // del presupuesto": fechaEmision si se pudo determinar, si no el
+      // momento en que se cargó -- decisión propia, a confirmar por Rocco
+      // (ver el comentario en envioScheduling.ts).
+      const config = await tx.configSeguimiento.findUnique({
+        where: { organizationId: input.organizationId },
+        select: { intervalosDias: true, horaInicioEnvio: true, zonaHoraria: true },
+      });
+
+      const enviosEmail = calcularEnviosEmail({
+        presupuestoId: presupuesto.id,
+        fechaReferencia: input.fechaEmision ?? input.ahora,
+        intervalosDias: config?.intervalosDias,
+        horaInicioEnvio: config?.horaInicioEnvio,
+        zonaHoraria: config?.zonaHoraria,
+      });
+
+      await tx.envio.createMany({
+        data: enviosEmail.map((envio) => ({
+          organizationId: input.organizationId,
+          presupuestoId: presupuesto.id,
+          paso: envio.paso,
+          canal: envio.canal,
+          programadoPara: envio.programadoPara,
+          claveIdempotencia: envio.claveIdempotencia,
+        })),
+      });
 
       return presupuesto;
     });
