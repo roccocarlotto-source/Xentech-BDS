@@ -13,6 +13,14 @@ export const agentToggleRepository = {
     return toggle?.enabled ?? false;
   },
 
+  async listEnabled(organizationId: string): Promise<AgentType[]> {
+    const toggles = await prisma.organizationAgentToggle.findMany({
+      where: { organizationId, enabled: true },
+      select: { agentType: true },
+    });
+    return toggles.map((t) => t.agentType);
+  },
+
   // Upsert por el unique compuesto (organizationId, agentType): no hay fila
   // "deshabilitado" que crear de antemano por cada combinación posible —
   // fila ausente y fila con enabled=false significan lo mismo (ver

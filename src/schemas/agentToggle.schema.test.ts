@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { agentTypeSchema, setAgentToggleSchema } from "./agentToggle.schema";
 
-test("agentTypeSchema acepta los tres AgentType del schema de Prisma", () => {
-  for (const tipo of ["WHATSAPP", "DATABASE_MANAGEMENT", "REMINDERS"]) {
+test("agentTypeSchema acepta todos los AgentType del schema de Prisma", () => {
+  for (const tipo of ["WHATSAPP", "DATABASE_MANAGEMENT", "REMINDERS", "SEGUIMIENTO_RESENAS"]) {
     assert.equal(agentTypeSchema.parse(tipo), tipo);
   }
 });

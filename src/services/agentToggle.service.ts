@@ -17,7 +17,12 @@ export interface OrganizationAgentTogglesDto {
 // siempre ve las mismas claves aunque la organización no tenga ninguna fila
 // en organization_agent_toggles todavía (fila ausente = deshabilitado).
 function togglesEnDefault(): Record<AgentType, boolean> {
-  return { WHATSAPP: false, DATABASE_MANAGEMENT: false, REMINDERS: false };
+  return {
+    WHATSAPP: false,
+    DATABASE_MANAGEMENT: false,
+    REMINDERS: false,
+    SEGUIMIENTO_RESENAS: false,
+  };
 }
 
 export async function listOrganizationsWithToggles(): Promise<OrganizationAgentTogglesDto[]> {

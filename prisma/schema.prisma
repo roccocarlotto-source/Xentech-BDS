@@ -33,6 +33,12 @@ enum AgentType {
   WHATSAPP
   DATABASE_MANAGEMENT
   REMINDERS
+  // Módulo de seguimiento de presupuestos y reseñas
+  // (docs/seguimiento-resenas-diseno.md). No es un agente de IA en sí, pero
+  // se habilita por organización con el mismo toggle del panel de
+  // plataforma (§2 del diseño: "igual que los agentes"). Solo agrega un
+  // valor al enum: `db push` lo aplica sin pérdida de datos.
+  SEGUIMIENTO_RESENAS
 }
 
 model Organization {

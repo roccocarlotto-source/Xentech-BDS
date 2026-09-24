@@ -16,6 +16,8 @@ import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { usersRouter } from "./routes/users";
 import { conversationsRouter } from "./routes/conversations";
 import { whatsappWebhookRouter } from "./routes/webhooks/whatsapp";
+import { resenasPublicRouter } from "./routes/resenasPublic";
+import { resenasRouter } from "./routes/resenas";
 import { AppError } from "./utils/AppError";
 import { parseAllowedOrigins } from "./lib/corsOrigins";
 import { getRateLimitOptions } from "./lib/rateLimitConfig";
@@ -45,6 +47,11 @@ export function createApp() {
 
   app.use(healthRouter);
   app.use(whatsappWebhookRouter);
+  // Rutas públicas (sin sesión) ANTES de cualquier router que haga
+  // `router.use(authenticate)` sin path -- esos aplican authenticate a todo
+  // request que pase por ellos, así que una ruta pública montada después
+  // pediría login.
+  app.use(resenasPublicRouter);
   app.use(meRouter);
   // Antes de clientesRouter a propósito: si fuera después, Express
   // matchearía "import" como :id de GET /api/clientes/:id (mismo motivo que
@@ -57,6 +64,7 @@ export function createApp() {
   app.use(knowledgeBaseEntriesRouter);
   app.use(usersRouter);
   app.use(conversationsRouter);
+  app.use(resenasRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
