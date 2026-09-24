@@ -111,6 +111,33 @@
   número de su lado). De paso, el webhook ahora también chequea
   `status === "CONNECTED"` antes de encolar un mensaje entrante (antes
   solo se chequeaba al momento de responder, en el poller).
+- **RLS (Row Level Security):** `prisma/sql/rls_policies.sql` -- defensa
+  SECUNDARIA, no reemplaza el filtro por organizationId de cada query de
+  Prisma (esa sigue siendo la principal). Alcance acordado con Rocco
+  (2026-09-24): protege contra cualquier acceso a Postgres que NO pase
+  por el backend de Express (Supabase Realtime, un cliente pegándole
+  directo a una tabla con el JWT de un usuario) -- NO protege contra el
+  propio backend, que se conecta con el rol `postgres` del pooler de
+  Supabase (tiene `BYPASSRLS`); hacer que también lo frene a él requeriría
+  migrar a un rol sin ese bypass y reescribir cada request para abrir su
+  conexión con `SET LOCAL`, alcance explícitamente dejado afuera por ser
+  mucho más grande/invasivo. Hoy el frontend usa Supabase solo para auth
+  (nunca `.from(...)` directo), así que esto es prevención, no el fix de
+  un bug activo. Probado de punta a punta contra un Postgres 16 local
+  (schema real vía `prisma db push` + un stub de `auth.uid()` + los
+  grants por default de Supabase a `anon`/`authenticated`): aislamiento
+  entre tenants, bloqueo de escritura cruzada, gate de solo-admin en
+  `agent_configs`/`knowledge_base_entries`, deny-all en
+  `whatsapp_connections`/`agent_inbound_jobs`/`platform_admins`, y que el
+  platform admin bypassea RLS SOLO en `organizations` y
+  `organization_agent_toggles` (las 2 tablas que su propio panel toca) --
+  no en el resto, a propósito: la primera versión le daba bypass en todas
+  las tablas de tenant "por las dudas", y el propio test lo agarró (un
+  privilegio que la app nunca otorga). No es parte del schema de Prisma
+  (`prisma db push` no sabe de policies) -- **falta que Rocco lo corra a
+  mano, una vez, en el SQL Editor del dashboard de Supabase** (mismo
+  motivo que bloquea correr un cliente de Postgres armado con Prisma
+  desde acá: la descarga del motor está bloqueada por política de red).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.
