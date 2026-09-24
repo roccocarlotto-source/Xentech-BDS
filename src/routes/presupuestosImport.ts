@@ -4,13 +4,17 @@ import { authenticate } from "../middlewares/authenticate";
 import { requireAgentEnabled } from "../middlewares/requireAgentEnabled";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../utils/AppError";
+import { commitImportPresupuestoSchema } from "../schemas/presupuestoImport.schema";
 import * as presupuestoImportService from "../services/presupuestoImport.service";
 
-// Etapa 4, paso 1 de docs/seguimiento-resenas-diseno.md (§6.2): solo el
-// preview de extracción (upload .docx -> texto -> IA), sin persistir nada
-// todavía. Mismo gate que /api/resenas: requiere el módulo
-// SEGUIMIENTO_RESENAS habilitado para la organización, cualquier usuario
-// (no hace falta ser admin para cargar un presupuesto).
+// Etapa 4 de docs/seguimiento-resenas-diseno.md (§6.2). Dos pasos, mismo
+// gate que /api/resenas (SEGUIMIENTO_RESENAS habilitado, cualquier usuario
+// de la organización -- no hace falta ser admin para cargar un
+// presupuesto):
+// - /preview (paso 1): sube el .docx, extrae texto + IA, no persiste nada.
+// - /commit (paso 2): recibe lo que la persona confirmó en la pantalla de
+//   revisión (JSON, sin el archivo) y crea Cliente (si hace falta),
+//   Presupuesto y su(s) Consentimiento(s).
 export const presupuestosImportRouter = Router();
 
 presupuestosImportRouter.use(
@@ -53,5 +57,18 @@ presupuestosImportRouter.post(
     res.json(
       await presupuestoImportService.previewImportPresupuesto(file.buffer, file.originalname),
     );
+  }),
+);
+
+presupuestosImportRouter.post(
+  "/commit",
+  asyncHandler(async (req, res) => {
+    const input = commitImportPresupuestoSchema.parse(req.body);
+    const presupuesto = await presupuestoImportService.commitImportPresupuesto(
+      req.auth!.organizationId,
+      req.auth!.userId,
+      input,
+    );
+    res.status(201).json(presupuesto);
   }),
 );

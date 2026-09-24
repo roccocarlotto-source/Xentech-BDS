@@ -104,7 +104,10 @@ export function ClientesPage() {
             <Link to="/inbox">Inbox</Link>
           )}
           {me?.agentesHabilitados?.includes("SEGUIMIENTO_RESENAS") && (
-            <Link to="/resenas">Reseñas</Link>
+            <>
+              <Link to="/resenas">Reseñas</Link>
+              <Link to="/presupuestos/importar">Importar presupuesto</Link>
+            </>
           )}
           {me?.role === "ADMIN" && !me.isPlatformAdmin && (
             <>

@@ -1,12 +1,20 @@
 import mammoth from "mammoth";
+import type { Presupuesto, Prisma } from "@prisma/client";
 import { AppError } from "../utils/AppError";
 import { getLlmProvider } from "../lib/llm/provider";
 import type { LlmProvider, LlmToolDefinition } from "../lib/llm/types";
 import {
   datosExtraidosPresupuestoSchema,
+  type CommitImportPresupuestoInput,
   type DatosExtraidosPresupuesto,
   type PreviewImportPresupuestoResult,
 } from "../schemas/presupuestoImport.schema";
+import { clienteRepository } from "../repositories/cliente.repository";
+import { userRepository } from "../repositories/user.repository";
+import {
+  presupuestoRepository,
+  type PresupuestoRepository,
+} from "../repositories/presupuesto.repository";
 
 // Etapa 4, paso 1 de docs/seguimiento-resenas-diseno.md (§6.2):
 // "Subida de .docx → texto con mammoth [...] Llamada a Claude con esquema
@@ -199,4 +207,92 @@ export async function previewImportPresupuesto(
   const datos = await extraerDatosPresupuesto(textoExtraido, deps);
 
   return { archivoNombre: originalname, textoExtraido, datos };
+}
+
+// ---------------------------------------------------------------------------
+// Etapa 4, paso 2: commit -- crea Cliente (si hace falta), Presupuesto y
+// su(s) Consentimiento(s), a partir de lo que la persona confirmó en la
+// pantalla de revisión. No vuelve a llamar a la IA.
+// ---------------------------------------------------------------------------
+
+// Los métodos de Prisma devuelven un client encadenable (PrismaPromise), no
+// una Promise lisa -- para que un fake en memoria pueda implementar la
+// interfaz en los tests, acá alcanza con "algo que resuelve a ese valor".
+// Mismo patrón que resena.service.ts.
+type Asincrono<T> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => infer R
+    ? (...args: A) => Promise<Awaited<R>>
+    : never;
+};
+
+export interface PresupuestoCommitDeps {
+  clienteRepo: Asincrono<Pick<typeof clienteRepository, "findById" | "create">>;
+  userRepo: Asincrono<Pick<typeof userRepository, "findById">>;
+  presupuestoRepo: Asincrono<PresupuestoRepository>;
+  ahora: () => Date;
+}
+
+const defaultCommitDeps: PresupuestoCommitDeps = {
+  clienteRepo: clienteRepository,
+  userRepo: userRepository,
+  presupuestoRepo: presupuestoRepository,
+  ahora: () => new Date(),
+};
+
+export async function commitImportPresupuesto(
+  organizationId: string,
+  creadoPorId: string,
+  input: CommitImportPresupuestoInput,
+  deps: PresupuestoCommitDeps = defaultCommitDeps,
+): Promise<Presupuesto> {
+  const clienteId = await resolverCliente(organizationId, input, deps);
+
+  let vendedorId: string | null = null;
+  if (input.vendedorId) {
+    const vendedor = await deps.userRepo.findById(organizationId, input.vendedorId);
+    if (!vendedor) {
+      throw new AppError("El vendedor indicado no existe en esta organización", 400);
+    }
+    vendedorId = vendedor.id;
+  }
+
+  return deps.presupuestoRepo.crearConConsentimientos({
+    organizationId,
+    clienteId,
+    vendedorId,
+    creadoPorId,
+    datosExtraidos: input.datosExtraidos as Prisma.InputJsonValue,
+    descripcion: input.descripcion ?? null,
+    monto: input.monto ?? null,
+    moneda: input.moneda ?? null,
+    fechaEmision: input.fechaEmision ?? null,
+    validoHasta: input.validoHasta ?? null,
+    archivoNombre: input.archivoNombre,
+    seguimientoWhatsapp: input.seguimientoWhatsapp,
+    consentimientoWhatsappOrigen: input.seguimientoWhatsapp
+      ? (input.consentimientoWhatsappOrigen ?? null)
+      : null,
+    ahora: deps.ahora(),
+  });
+}
+
+async function resolverCliente(
+  organizationId: string,
+  input: CommitImportPresupuestoInput,
+  deps: PresupuestoCommitDeps,
+): Promise<string> {
+  if (input.cliente.modo === "existente") {
+    const cliente = await deps.clienteRepo.findById(organizationId, input.cliente.clienteId);
+    if (!cliente) {
+      throw new AppError("El cliente indicado no existe en esta organización", 400);
+    }
+    return cliente.id;
+  }
+
+  const nuevo = await deps.clienteRepo.create(organizationId, {
+    nombre: input.cliente.nombre,
+    telefono: input.cliente.telefono ?? null,
+    email: input.cliente.email ?? null,
+  });
+  return nuevo.id;
 }
