@@ -26,7 +26,15 @@
   importación de clientes desde Excel (.xlsx), TXT/CSV (autodetección
   de delimitador) y PDF (tabla con bordes/grilla, vía `pdf-parse`) —
   los tres formatos comparten el mismo flujo de preview + mapeo de
-  columnas + revisión en `/clientes/importar`. Fase 4 (estructura del
+  columnas + revisión en `/clientes/importar`. El backend de
+  `/api/clientes` siempre tuvo el CRUD completo (`POST`/`PATCH`/`DELETE`),
+  pero hasta ahora la pantalla `/` (`ClientesPage`) era de solo lectura
+  -- se agregó `ClienteForm` (mismos campos que la importación,
+  `cuotaPeriodicidad` se fija sola en "MENSUAL" al cargar una fecha de
+  pago porque es la única que existe) para alta/edición manual, y
+  botones de editar/eliminar (con confirmación) en `ClientesTable` --
+  gap real que Rocco notó navegando la web (2026-09-24), no estaba
+  documentado como pendiente hasta ese momento. Fase 4 (estructura del
   panel de admin de plataforma) lista: `/admin/organizations` permite
   habilitar/deshabilitar por
   organización los tres tipos de agente (WhatsApp, gestión de base de
