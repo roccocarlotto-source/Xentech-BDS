@@ -51,6 +51,8 @@ model Organization {
   conversations        Conversation[]
   knowledgeBaseEntries KnowledgeBaseEntry[]
   agentInboundJobs     AgentInboundJob[]
+  configSeguimiento    ConfigSeguimiento?
+  presupuestos         Presupuesto[]
 
   @@map("organizations")
 }
@@ -77,6 +79,11 @@ model User {
   deletedAt      DateTime? @map("deleted_at")
 
   organization Organization @relation(fields: [organizationId], references: [id])
+
+  presupuestosVendidos   Presupuesto[]    @relation("PresupuestoVendedor")
+  presupuestosCreados    Presupuesto[]    @relation("PresupuestoCreadoPor")
+  consentimientosRegistr Consentimiento[] @relation("ConsentimientoRegistradoPor")
+  resenasModeradas       Resena[]         @relation("ResenaModeradaPor")
 
   @@unique([organizationId, id])
   @@map("users")
@@ -117,6 +124,12 @@ model Cliente {
 
   organization  Organization   @relation(fields: [organizationId], references: [id])
   conversations Conversation[]
+
+  presupuestos        Presupuesto[]
+  consentimientos     Consentimiento[]
+  mensajesSeguimiento MensajeSeguimiento[]
+  tokensResena        TokenResena[]
+  resenas             Resena[]
 
   @@unique([organizationId, id])
   @@map("clientes")
@@ -161,12 +174,12 @@ model AgentConfig {
   // promesasProhibidas, datosRequeridosAntesDeAccion) puede evolucionar sin
   // migración. accionesProhibidas SÍ se aplica en código (puedeEjecutarTool);
   // el resto son instrucciones a nivel de prompt, no gates de ejecución.
-  guardrails    Json     @default("{}")
-  enabledTools  String[] @map("enabled_tools")
-  modelProvider String   @map("model_provider") @db.VarChar(50)
-  modelName     String   @map("model_name") @db.VarChar(100)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  guardrails     Json      @default("{}")
+  enabledTools   String[]  @map("enabled_tools")
+  modelProvider  String    @map("model_provider") @db.VarChar(50)
+  modelName      String    @map("model_name") @db.VarChar(100)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization  Organization   @relation(fields: [organizationId], references: [id])
   conversations Conversation[]
@@ -232,19 +245,19 @@ enum AgentInboundJobStatus {
 // externalMessageId choca acá (P2002) y el handler lo trata como ya
 // encolado, sin tocar el orquestador.
 model AgentInboundJob {
-  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId    String                 @map("organization_id") @db.Uuid
-  agentType         AgentType              @map("agent_type")
-  externalThreadId  String                 @map("external_thread_id") @db.VarChar(50)
-  telefonoCliente   String?                @map("telefono_cliente") @db.VarChar(30)
-  mensaje           String                 @db.Text
-  externalMessageId String                 @unique @map("external_message_id") @db.VarChar(100)
-  status            AgentInboundJobStatus  @default(PENDING)
-  attempts          Int                    @default(0)
-  lastError         String?                @map("last_error") @db.Text
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @updatedAt @map("updated_at")
-  processedAt       DateTime?              @map("processed_at")
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String                @map("organization_id") @db.Uuid
+  agentType         AgentType             @map("agent_type")
+  externalThreadId  String                @map("external_thread_id") @db.VarChar(50)
+  telefonoCliente   String?               @map("telefono_cliente") @db.VarChar(30)
+  mensaje           String                @db.Text
+  externalMessageId String                @unique @map("external_message_id") @db.VarChar(100)
+  status            AgentInboundJobStatus @default(PENDING)
+  attempts          Int                   @default(0)
+  lastError         String?               @map("last_error") @db.Text
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  processedAt       DateTime?             @map("processed_at")
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -345,4 +358,287 @@ model KnowledgeBaseEntry {
   @@unique([organizationId, id])
   @@index([organizationId, isActive])
   @@map("knowledge_base_entries")
+}
+
+// -----------------------------------------------------------------------------
+// Módulo de seguimiento de presupuestos y reseñas — etapa 2 de
+// docs/seguimiento-resenas-diseno.md (modelo de datos). Solo tablas y enums
+// NUEVOS: no cambia ninguna columna existente, así que `prisma db push` lo
+// aplica sin --accept-data-loss.
+//
+// Tenancy: igual que el resto del repo, cada tabla lleva organizationId y
+// cada query filtra por ella. Además, las relaciones hacia Cliente/User/
+// Presupuesto van por FK compuesta (organizationId, id) —patrón de
+// PlataformaCRM—, así que la base misma rechaza un presupuesto de una
+// organización apuntando a un cliente de otra.
+//
+// Lo que Prisma no expresa queda a cargo de Zod (no hay SQL manual en este
+// repo): la forma de ConfigSeguimiento en
+// src/schemas/configSeguimiento.schema.ts; estrellas entre 1 y 5 en el
+// schema de creación de reseñas (etapa 3).
+// -----------------------------------------------------------------------------
+
+// §4 del diseño. Transiciones: PENDIENTE → EN_SEGUIMIENTO (primer envío) →
+// ACEPTADO | RECHAZADO | SIN_RESPUESTA (terminó la secuencia) | VENCIDO
+// (pasó validoHasta).
+enum PresupuestoEstado {
+  PENDIENTE
+  EN_SEGUIMIENTO
+  ACEPTADO
+  RECHAZADO
+  VENCIDO
+  SIN_RESPUESTA
+}
+
+enum CanalSeguimiento {
+  WHATSAPP
+  EMAIL
+}
+
+// §5 del diseño — los únicos caminos válidos. "Si no quiere WhatsApp,
+// responda BAJA" NO es un origen: no cuenta como consentimiento.
+enum ConsentimientoOrigen {
+  WHATSAPP_ENTRANTE
+  VERBAL_VENDEDOR
+  RESPUESTA_WHATSAPP
+  RELACION_PRESUPUESTO_EMAIL
+}
+
+enum EnvioEstado {
+  PROGRAMADO
+  ENVIADO
+  FALLIDO
+  CANCELADO
+}
+
+// §6.5 del diseño — salida estructurada de la IA sobre cada mensaje entrante.
+enum ClasificacionRespuesta {
+  INTERESADO
+  PIDE_DESCUENTO
+  QUIERE_LLAMADA
+  LO_ESTA_PENSANDO
+  ACEPTA
+  RECHAZA
+  COMPRO_EN_OTRO_LADO
+  BAJA
+  OTRO
+}
+
+// Post-moderación: una reseña se publica sola (APROBADA) y se RECHAZA solo
+// por spam o contenido inapropiado — §5 del diseño prohíbe ocultar reseñas
+// negativas legítimas, y un default PENDIENTE convertiría la moderación en
+// un filtro previo de todo. Decisión a confirmar por Rocco.
+enum ResenaModeracion {
+  APROBADA
+  RECHAZADA
+}
+
+// Una fila por organización. Json + Zod para plantillas, mismo criterio que
+// AgentConfig.guardrails: la forma (por canal y por paso) puede evolucionar
+// sin tocar el schema.
+model ConfigSeguimiento {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId         String   @unique @map("organization_id") @db.Uuid
+  // Días entre el envío del presupuesto y cada paso de seguimiento.
+  intervalosDias         Int[]    @default([2, 7, 15]) @map("intervalos_dias")
+  maxIntentos            Int      @default(3) @map("max_intentos")
+  // Ventana de envío en hora local de zonaHoraria (inicio inclusive, fin
+  // exclusive): con 9 y 20, nada sale antes de las 9:00 ni desde las 20:00.
+  horaInicioEnvio        Int      @default(9) @map("hora_inicio_envio")
+  horaFinEnvio           Int      @default(20) @map("hora_fin_envio")
+  zonaHoraria            String   @default("America/Montevideo") @map("zona_horaria") @db.VarChar(64)
+  plantillas             Json     @default("{}")
+  diasValidezTokenResena Int      @default(30) @map("dias_validez_token_resena")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("config_seguimiento")
+}
+
+model Presupuesto {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  clienteId           String            @map("cliente_id") @db.Uuid
+  // Nullable: el vendedor extraído del .docx puede no tener usuario en el
+  // sistema. El nombre tal como vino queda en datosExtraidos.
+  vendedorId          String?           @map("vendedor_id") @db.Uuid
+  creadoPorId         String            @map("creado_por_id") @db.Uuid
+  // Salida cruda de la extracción (§6.2): lo que devolvió el parser o la IA,
+  // antes de la revisión humana. Los campos confirmados van en columnas.
+  datosExtraidos      Json              @default("{}") @map("datos_extraidos")
+  descripcion         String?           @db.Text
+  monto               Decimal?          @db.Decimal(14, 2)
+  moneda              String?           @db.VarChar(3)
+  fechaEmision        DateTime?         @map("fecha_emision") @db.Date
+  validoHasta         DateTime?         @map("valido_hasta") @db.Date
+  // Ruta del .docx original en Supabase Storage (bucket a definir en la
+  // etapa 4); nunca el archivo en la base.
+  archivoPath         String?           @map("archivo_path") @db.VarChar(500)
+  archivoNombre       String?           @map("archivo_nombre") @db.VarChar(255)
+  estado              PresupuestoEstado @default(PENDIENTE)
+  // §5: "Seguimiento por WhatsApp: sí / no" es OBLIGATORIO al cargar. Sin
+  // @default a propósito: Prisma exige el valor en cada create, así que no
+  // hay forma de guardar un presupuesto sin haberlo decidido.
+  seguimientoWhatsapp Boolean           @map("seguimiento_whatsapp")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  deletedAt           DateTime?         @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  cliente      Cliente      @relation(fields: [organizationId, clienteId], references: [organizationId, id])
+  vendedor     User?        @relation("PresupuestoVendedor", fields: [organizationId, vendedorId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  creadoPor    User         @relation("PresupuestoCreadoPor", fields: [organizationId, creadoPorId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  envios          Envio[]
+  mensajes        MensajeSeguimiento[]
+  consentimientos Consentimiento[]
+  tokensResena    TokenResena[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, estado])
+  @@index([organizationId, clienteId])
+  @@map("presupuestos")
+}
+
+// §5. Una fila por consentimiento otorgado; la baja no borra la fila, le
+// pone bajaEn. Vigente = bajaEn IS NULL.
+//
+// Email: al crear el presupuesto se registra RELACION_PRESUPUESTO_EMAIL con
+// presupuestoId, porque ese consentimiento vale SOLO para el seguimiento de
+// ese presupuesto. Así la baja por email también queda registrada con fecha.
+model Consentimiento {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  clienteId       String               @map("cliente_id") @db.Uuid
+  presupuestoId   String?              @map("presupuesto_id") @db.Uuid
+  canal           CanalSeguimiento
+  origen          ConsentimientoOrigen
+  otorgadoEn      DateTime             @default(now()) @map("otorgado_en")
+  bajaEn          DateTime?            @map("baja_en")
+  // Null cuando lo registra el sistema (p. ej. RESPUESTA_WHATSAPP).
+  registradoPorId String?              @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at")
+
+  cliente       Cliente      @relation(fields: [organizationId, clienteId], references: [organizationId, id])
+  presupuesto   Presupuesto? @relation(fields: [organizationId, presupuestoId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  registradoPor User?        @relation("ConsentimientoRegistradoPor", fields: [organizationId, registradoPorId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organizationId, clienteId, canal])
+  @@map("consentimientos")
+}
+
+// §6.3. Un paso de la secuencia de un presupuesto por un canal.
+//
+// claveIdempotencia = "<presupuestoId>:<paso>:<canal>", única: programar el
+// mismo paso dos veces choca acá. El motor (etapa 5) además reclama cada
+// fila con una actualización condicional (PROGRAMADO → ENVIADO solo si
+// sigue PROGRAMADO), así que dos corridas en paralelo nunca mandan dos veces.
+model Envio {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  presupuestoId     String           @map("presupuesto_id") @db.Uuid
+  paso              Int
+  canal             CanalSeguimiento
+  programadoPara    DateTime         @map("programado_para")
+  enviadoEn         DateTime?        @map("enviado_en")
+  estado            EnvioEstado      @default(PROGRAMADO)
+  claveIdempotencia String           @unique @map("clave_idempotencia") @db.VarChar(120)
+  intentos          Int              @default(0)
+  ultimoError       String?          @map("ultimo_error") @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  presupuesto Presupuesto          @relation(fields: [organizationId, presupuestoId], references: [organizationId, id])
+  mensajes    MensajeSeguimiento[]
+
+  @@unique([organizationId, id])
+  // La consulta del job: "programados con fecha vencida".
+  @@index([estado, programadoPara])
+  @@index([presupuestoId])
+  @@map("envios")
+}
+
+// Mensajes del seguimiento, por email o WhatsApp, en las dos direcciones.
+// Tabla aparte de Message (que cuelga de una Conversation del agente de
+// WhatsApp): un email no tiene Conversation. Cómo conviven los WhatsApp
+// entrantes de un cliente con presupuesto abierto con el agente reactivo se
+// decide en la etapa 6.
+model MensajeSeguimiento {
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String                  @map("organization_id") @db.Uuid
+  presupuestoId    String?                 @map("presupuesto_id") @db.Uuid
+  clienteId        String                  @map("cliente_id") @db.Uuid
+  // El paso que lo originó (salientes). Null en los entrantes.
+  envioId          String?                 @map("envio_id") @db.Uuid
+  canal            CanalSeguimiento
+  direccion        MessageDirection
+  contenido        String                  @db.Text
+  fecha            DateTime                @default(now())
+  // wamid de Meta o Message-ID del email. Única: deduplica reintentos de
+  // webhooks del proveedor.
+  externalId       String?                 @unique @map("external_id") @db.VarChar(255)
+  clasificacionIa  ClasificacionRespuesta? @map("clasificacion_ia")
+  resumenIa        String?                 @map("resumen_ia") @db.VarChar(500)
+  requiereVendedor Boolean?                @map("requiere_vendedor")
+  createdAt        DateTime                @default(now()) @map("created_at")
+
+  presupuesto Presupuesto? @relation(fields: [organizationId, presupuestoId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  cliente     Cliente      @relation(fields: [organizationId, clienteId], references: [organizationId, id])
+  envio       Envio?       @relation(fields: [organizationId, envioId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organizationId, presupuestoId, fecha])
+  @@index([organizationId, clienteId])
+  @@map("mensajes_seguimiento")
+}
+
+// §6.1. Se guarda el HASH del token (sha256), nunca el token: mismo patrón
+// que las API keys de PlataformaCRM. Quien lea la base no puede armar links
+// válidos. Consecuencia: un link no se puede "reenviar" desde la base; se
+// genera un token nuevo.
+model TokenResena {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(64)
+  clienteId      String    @map("cliente_id") @db.Uuid
+  presupuestoId  String?   @map("presupuesto_id") @db.Uuid
+  venceEn        DateTime  @map("vence_en")
+  // Se marca en la MISMA transacción que crea la Resena (§6.1).
+  usadoEn        DateTime? @map("usado_en")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  cliente     Cliente      @relation(fields: [organizationId, clienteId], references: [organizationId, id])
+  presupuesto Presupuesto? @relation(fields: [organizationId, presupuestoId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  resena      Resena?
+
+  @@index([organizationId, clienteId])
+  @@map("tokens_resena")
+}
+
+model Resena {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  // Única: un token, una reseña.
+  tokenResenaId    String           @unique @map("token_resena_id") @db.Uuid
+  clienteId        String           @map("cliente_id") @db.Uuid
+  anonimo          Boolean
+  // Null si anonimo. Copia del nombre al momento de publicar, no una
+  // referencia viva: si después cambia Cliente.nombre, la reseña no cambia.
+  nombreVisible    String?          @map("nombre_visible") @db.VarChar(200)
+  estrellas        Int
+  comentario       String?          @db.VarChar(1000)
+  moderacion       ResenaModeracion @default(APROBADA)
+  moderadoPorId    String?          @map("moderado_por_id") @db.Uuid
+  moderadoEn       DateTime?        @map("moderado_en")
+  motivoModeracion String?          @map("motivo_moderacion") @db.VarChar(500)
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  tokenResena TokenResena @relation(fields: [tokenResenaId], references: [id])
+  cliente     Cliente     @relation(fields: [organizationId, clienteId], references: [organizationId, id])
+  moderadoPor User?       @relation("ResenaModeradaPor", fields: [organizationId, moderadoPorId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  // El listado público: aprobadas de una organización, más nuevas primero.
+  @@index([organizationId, moderacion, createdAt])
+  @@map("resenas")
 }
