@@ -201,6 +201,107 @@ body {
   border-bottom: none;
 }
 
+.clientes-table-actions {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.clientes-table-actions button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clientes-table-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.clientes-table-delete {
+  color: var(--critical);
+  border-color: var(--critical) !important;
+}
+
+.clientes-nuevo-boton {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.cliente-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.cliente-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cliente-form-notas {
+  grid-column: 1 / -1;
+}
+
+.cliente-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.cliente-form input,
+.cliente-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.cliente-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cliente-form-actions button[type="submit"] {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cliente-form-actions button[type="button"] {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cliente-form-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .notas-cell {
   display: flex;
   flex-direction: column;
