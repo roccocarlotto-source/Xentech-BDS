@@ -291,6 +291,22 @@ Pendiente:
 - **Presupuesto de ejemplo real** (arrastrado del paso 1): sigue sin llegar.
 - **Motor de seguimiento (etapa 5):** todavía no consume nada de esto -- un `Presupuesto` creado hoy no genera ningún `Envio` todavía (eso es la etapa 5, "motor de seguimiento por email").
 
+### Estado de la etapa 5, paso 1: programar los `Envio` de email (2026-09-25)
+
+Hecha, en código -- SOLO la parte de programar, no la de enviar (§7 separa "motor de seguimiento por email" en un paso, este PR cubre nada más que la creación de las filas `Envio`):
+
+- **`src/lib/seguimiento/envioScheduling.ts`:** función pura `calcularEnviosEmail()`, un `Envio` por cada entrada de `intervalosDias`. §4 dice "días entre el envío del presupuesto y cada paso de seguimiento" -- se interpretó como offsets desde LA MISMA fecha de referencia (no acumulados: `[2, 7, 15]` son los días 2, 7 y 15), consistente con que `configSeguimiento.schema.ts` ya exige que sean estrictamente crecientes.
+- **`presupuesto.repository.ts` (`crearConConsentimientos`):** ahora, en la MISMA transacción que crea el `Presupuesto` y sus `Consentimiento`, busca la `ConfigSeguimiento` de la organización (si existe) y programa los `Envio` de EMAIL -- WhatsApp queda para la etapa 6, a propósito. Sin fila de config (todavía no hay panel para cargarla, eso es la etapa 8), usa los mismos defaults que el schema de Prisma (`[2, 7, 15]` días, 9 h, `America/Montevideo`).
+- Fecha de referencia = `fechaEmision` del presupuesto si se pudo determinar, si no el momento en que se cargó -- decisión propia, a confirmar por Rocco.
+- Tests: `envioScheduling.test.ts` (función pura, sin DB) -- **no hay test de `presupuesto.repository.ts` en sí** (ninguna otra transacción de Prisma del repo lo tiene tampoco: `npm test` no levanta Postgres, ver `.github/workflows/ci.yml`), así que la llamada real a `tx.configSeguimiento.findUnique` + `tx.envio.createMany` no se probó contra una base real. Backend 183 tests, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto en este paso (queda para pasos siguientes de la etapa 5):
+
+- **Envío real:** no hay job periódico, ni integración con ningún proveedor de email (Resend/SendGrid, §3 -- sigue sin elegirse). Las filas `Envio` quedan en `PROGRAMADO` para siempre hasta que exista ese paso.
+- **Las verificaciones antes de enviar** (§6.3 punto 2: presupuesto sigue abierto, no hay baja, consentimiento válido, no se pasó `maxIntentos`) -- son del job de envío, no de la programación.
+- **Recepción de respuestas y detección de "BAJA"** (§7, mismo paso de etapa que "envío"): tampoco cubierto todavía.
+- **No se puede probar de punta a punta:** las tablas de la etapa 2 (incluida `envios`) siguen sin aplicarse a la base real (`db-migrate.yml` sigue sin correrse -- ver el estado de la etapa 2 más arriba).
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.
