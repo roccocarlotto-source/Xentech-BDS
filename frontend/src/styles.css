@@ -637,6 +637,111 @@ body {
   gap: 16px;
 }
 
+.whatsapp-connection-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.whatsapp-connection-status--connected {
+  background: color-mix(in srgb, var(--good) 15%, transparent);
+  color: var(--good);
+}
+
+.whatsapp-connection-status--pending {
+  background: color-mix(in srgb, var(--ink-muted) 15%, transparent);
+  color: var(--ink-secondary);
+}
+
+.whatsapp-connection-status--disconnected {
+  background: color-mix(in srgb, var(--critical) 15%, transparent);
+  color: var(--critical);
+}
+
+.whatsapp-connection-info dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.whatsapp-connection-info dt {
+  color: var(--ink-muted);
+}
+
+.whatsapp-connection-info dd {
+  margin: 0;
+  color: var(--ink-primary);
+}
+
+.whatsapp-connection-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.whatsapp-connection-actions button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.whatsapp-connection-disconnect {
+  color: var(--critical);
+  border-color: var(--critical) !important;
+}
+
+.whatsapp-connection-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.whatsapp-connection-help {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.whatsapp-connection-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.whatsapp-connection-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.whatsapp-connection-form-actions button[type="submit"] {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.whatsapp-connection-form-actions button[type="button"] {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.whatsapp-connection-form-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .agent-config-fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;

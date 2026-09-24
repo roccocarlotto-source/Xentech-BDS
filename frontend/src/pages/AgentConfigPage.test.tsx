@@ -56,6 +56,14 @@ describe("AgentConfigPage", () => {
       const url = String(input);
       const method = init?.method ?? "GET";
 
+      // WhatsAppConnectionCard vive dentro de AgentConfigPage y dispara su
+      // propio fetch al montarse -- acá no es el foco de los tests de esta
+      // página (eso vive en WhatsAppConnectionCard.test.tsx), alcanza con
+      // "sin conexión todavía" para no romper el resto de los mocks.
+      if (url.endsWith("/whatsapp-connection") && method === "GET") {
+        return jsonResponse(null);
+      }
+
       if (url.endsWith("/agent-config/WHATSAPP") && method === "GET") {
         return jsonResponse(agentConfig);
       }
