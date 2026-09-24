@@ -117,6 +117,14 @@
 
 ---
 
+## Despliegue
+
+**Hoy Xentech no está desplegado**: ni backend ni frontend tienen hosting,
+URL pública ni dominio; el único recurso "de producción" es el proyecto de
+Supabase (uno solo, compartido con desarrollo). Detalle y decisiones
+pendientes en `docs/deployment.md` — leerlo antes de asumir cualquier URL
+o proveedor, y actualizarlo cuando se decida algo.
+
 ## Política de merge
 
 A diferencia de `PlataformaCRM` (que prohíbe el auto-merge por decisión
