@@ -138,6 +138,13 @@
   mano, una vez, en el SQL Editor del dashboard de Supabase** (mismo
   motivo que bloquea correr un cliente de Postgres armado con Prisma
   desde acá: la descarga del motor está bloqueada por política de red).
+  Cubre también las 7 tablas del módulo de seguimiento/reseñas (etapa 2):
+  lectura por organización, escritura solo vía backend salvo
+  `config_seguimiento` (admin de la org), `tokens_resena` deny-all, y
+  ninguna policy para `anon` en `resenas` (el listado público lo sirve el
+  backend). `src/rlsPolicies.test.ts` falla en CI si una tabla del schema
+  no aparece en el archivo con `enable` + `force` -- **toda tabla nueva
+  tiene que entrar ahí**, con policies o como deny-all.
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.

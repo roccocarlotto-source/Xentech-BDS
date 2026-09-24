@@ -305,3 +305,129 @@ revoke all on agent_inbound_jobs from anon, authenticated;
 alter table platform_admins enable row level security;
 alter table platform_admins force row level security;
 revoke all on platform_admins from anon, authenticated;
+
+-- =======================================================================
+-- Módulo de seguimiento de presupuestos y reseñas (etapa 2 de
+-- docs/seguimiento-resenas-diseno.md). Mismo alcance que el resto del
+-- archivo: defensa secundaria contra acceso DIRECTO (anon/authenticated),
+-- el backend sigue bypasseando RLS. Mismo criterio también para el
+-- platform admin: SIN bypass en ninguna de estas tablas -- su panel no
+-- toca ninguna (el día que el módulo tenga un toggle por organización,
+-- ese toggle vive en organization_agent_toggles, ya cubierta arriba).
+--
+-- Criterio de escritura: igual que conversations/messages, las tablas cuyo
+-- alta o cambio tiene efectos secundarios que vive en el service layer
+-- quedan de SOLO LECTURA para la organización -- crear un presupuesto
+-- registra en la misma transacción su consentimiento de email (§5 del
+-- diseño) y programa los envíos; un consentimiento es un registro legal
+-- (Ley 18.331) que no se edita a mano; los envíos y mensajes son del motor
+-- de seguimiento. Replicar esas reglas en SQL sería reinventar el backend.
+-- =======================================================================
+
+-- -----------------------------------------------------------------------
+-- config_seguimiento -- mismo criterio que agent_configs: la organización
+-- lee su configuración (intervalos, horario, plantillas), solo su admin la
+-- escribe.
+-- -----------------------------------------------------------------------
+
+alter table config_seguimiento enable row level security;
+alter table config_seguimiento force row level security;
+
+drop policy if exists config_seguimiento_select on config_seguimiento;
+create policy config_seguimiento_select on config_seguimiento
+  for select
+  using (organization_id = xentech_auth_organization_id());
+
+drop policy if exists config_seguimiento_insert on config_seguimiento;
+create policy config_seguimiento_insert on config_seguimiento
+  for insert
+  with check (organization_id = xentech_auth_organization_id() and xentech_is_org_admin());
+
+drop policy if exists config_seguimiento_update on config_seguimiento;
+create policy config_seguimiento_update on config_seguimiento
+  for update
+  using (organization_id = xentech_auth_organization_id() and xentech_is_org_admin())
+  with check (organization_id = xentech_auth_organization_id() and xentech_is_org_admin());
+
+drop policy if exists config_seguimiento_delete on config_seguimiento;
+create policy config_seguimiento_delete on config_seguimiento
+  for delete
+  using (organization_id = xentech_auth_organization_id() and xentech_is_org_admin());
+
+-- -----------------------------------------------------------------------
+-- presupuestos / consentimientos / envios / mensajes_seguimiento --
+-- lectura para cualquier usuario de la organización (el panel muestra
+-- estado, próximo envío e historial a los vendedores, no solo al admin),
+-- sin policies de escritura (ver el criterio al principio de esta
+-- sección). mensajes_seguimiento NO usa el gate de inbox que tiene
+-- messages: el historial de un presupuesto es parte del panel del
+-- vendedor (§6.6 del diseño), no del inbox del agente de WhatsApp.
+-- -----------------------------------------------------------------------
+
+alter table presupuestos enable row level security;
+alter table presupuestos force row level security;
+
+drop policy if exists presupuestos_select on presupuestos;
+create policy presupuestos_select on presupuestos
+  for select
+  using (organization_id = xentech_auth_organization_id());
+
+alter table consentimientos enable row level security;
+alter table consentimientos force row level security;
+
+drop policy if exists consentimientos_select on consentimientos;
+create policy consentimientos_select on consentimientos
+  for select
+  using (organization_id = xentech_auth_organization_id());
+
+alter table envios enable row level security;
+alter table envios force row level security;
+
+drop policy if exists envios_select on envios;
+create policy envios_select on envios
+  for select
+  using (organization_id = xentech_auth_organization_id());
+
+alter table mensajes_seguimiento enable row level security;
+alter table mensajes_seguimiento force row level security;
+
+drop policy if exists mensajes_seguimiento_select on mensajes_seguimiento;
+create policy mensajes_seguimiento_select on mensajes_seguimiento
+  for select
+  using (organization_id = xentech_auth_organization_id());
+
+-- -----------------------------------------------------------------------
+-- tokens_resena -- deny-all + revoke, mismo criterio que
+-- whatsapp_connections. La página pública /r/<token> NO toca esta tabla
+-- directo: le pega al backend, que hashea el token y lo valida. Guarda
+-- solo el hash, pero igual no hay ningún caso de uso de que un cliente la
+-- lea -- ni siquiera la organización (un link no se puede reenviar desde
+-- la base, se genera uno nuevo; ver el modelo en schema.prisma).
+-- -----------------------------------------------------------------------
+
+alter table tokens_resena enable row level security;
+alter table tokens_resena force row level security;
+revoke all on tokens_resena from anon, authenticated;
+
+-- -----------------------------------------------------------------------
+-- resenas -- lectura para la organización (todas, incluidas las
+-- rechazadas: es lo que ve el panel de moderación). Sin escritura directa:
+-- publicar una reseña marca el token como usado en la MISMA transacción
+-- (§6.1) y moderar deja registro de quién/cuándo/por qué -- las dos cosas
+-- pasan por el backend.
+--
+-- A propósito, NINGUNA policy para `anon`, aunque las reseñas aprobadas
+-- son públicas por diseño (se muestran en la web de la empresa): ese
+-- listado público lo sirve el backend, que devuelve solo los campos
+-- publicables. Un SELECT directo de anon expondría columnas que no son
+-- públicas (cliente_id, moderado_por_id, motivo_moderacion) -- RLS filtra
+-- filas, no columnas.
+-- -----------------------------------------------------------------------
+
+alter table resenas enable row level security;
+alter table resenas force row level security;
+
+drop policy if exists resenas_select on resenas;
+create policy resenas_select on resenas
+  for select
+  using (organization_id = xentech_auth_organization_id());
