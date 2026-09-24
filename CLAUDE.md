@@ -87,6 +87,22 @@
   webhook. Decisión propia (documentada como tal, reemplazable sin
   tocar el resto): AES-256-GCM para el token y tabla+poller para la
   cola, ambas eran "decisiones abiertas" del doc de arquitectura.
+  Otro gap real que había quedado sin documentar hasta que Rocco lo
+  notó navegando la web (2026-09-24): el modelo `WhatsAppConnection`
+  y el webhook que lo LEE existían, pero no había ninguna forma -- ni
+  de API ni de UI -- de escribirlo. Se agregó `PUT/GET/DELETE
+/api/whatsapp-connection` (`requireOrgAdmin`) y una tarjeta de
+  conexión en `/agente-whatsapp` (`WhatsAppConnectionCard`). Decisión
+  propia documentada en `services/whatsappConnection.service.ts`:
+  carga MANUAL de los 3 valores (`phoneNumberId`, `wabaId`, token) en
+  vez de automatizar el flujo OAuth completo (Embedded Signup) de
+  Meta -- automatizarlo requiere una Meta App ya configurada, que
+  depende del mismo trámite de Meta Business que sigue pendiente de
+  Rocco. El status pasa a `CONNECTED` apenas se guarda (para cuando
+  el admin tiene esos 3 valores en la mano, Meta ya confirmó el
+  número de su lado). De paso, el webhook ahora también chequea
+  `status === "CONNECTED"` antes de encolar un mensaje entrante (antes
+  solo se chequeaba al momento de responder, en el poller).
 - **Key context:** el brief completo de producto (MVP, modelo de
   datos, roadmap) vive en el doc de Cowork enlazado desde
   `docs/estado-actual.md` — leerlo ahí antes de asumir alcance.

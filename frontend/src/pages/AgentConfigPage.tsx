@@ -16,6 +16,7 @@ import {
   type UpsertAgentConfigInput,
 } from "../types/agentConfig";
 import type { KnowledgeBaseEntry, KnowledgeBaseEntryInput } from "../types/knowledgeBaseEntry";
+import { WhatsAppConnectionCard } from "../components/WhatsAppConnectionCard";
 
 // Fase 5, paso 3 del plan (docs/ai-agent-architecture.md §11): pantalla de
 // configuración del agente de WhatsApp para el admin de la propia
@@ -163,6 +164,8 @@ export function AgentConfigPage() {
           </button>
         </div>
       </header>
+
+      <WhatsAppConnectionCard />
 
       {agentConfigQuery.isLoading && <p className="page-message">Cargando configuración…</p>}
       {agentConfigQuery.isError && (

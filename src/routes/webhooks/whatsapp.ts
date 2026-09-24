@@ -85,6 +85,12 @@ async function encolarMensajesEntrantes(payload: unknown): Promise<void> {
     // conectar el suyo) -- nada que hacer, no es un error.
     if (!connection) continue;
 
+    // Desconectado (o todavía sin confirmar) -- no tiene sentido correr el
+    // agente para un canal que no va a poder mandar la respuesta (ver el
+    // chequeo de status CONNECTED en inboundJobProcessor.ts antes de
+    // enviar). Cortar acá evita gastar una llamada al LLM en vano.
+    if (connection.status !== "CONNECTED") continue;
+
     const habilitado = await agentToggleRepository.isEnabled(connection.organizationId, "WHATSAPP");
     if (!habilitado) continue;
 
