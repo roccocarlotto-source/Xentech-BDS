@@ -24,6 +24,9 @@ export interface MeResponse {
   // derivadas (ver User.canHandleInbox del backend). Siempre false para un
   // platform admin.
   canHandleInbox: boolean;
+  // AgentType con el toggle prendido para la organización (vacío para un
+  // platform admin). Decide qué módulos se muestran, ej. Reseñas.
+  agentesHabilitados: string[];
 }
 
 export type AuthStatus =

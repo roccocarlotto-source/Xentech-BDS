@@ -1189,3 +1189,263 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Reseñas (etapa 3 de docs/seguimiento-resenas-diseno.md) */
+
+.estrellas {
+  color: #d4a017;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.estrellas-vacias {
+  color: var(--border);
+}
+
+.resenas-generar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.resenas-generar h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.resenas-generar form,
+.resenas-link,
+.resenas-filtro label,
+.resenas-generar label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.resenas-generar form {
+  gap: 12px;
+}
+
+.resenas-generar select,
+.resenas-filtro select,
+.resenas-link input,
+.resenas-rechazo input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.resenas-link {
+  margin-top: 12px;
+}
+
+.resenas-link input {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.resenas-generar button,
+.resenas-link button,
+.admin-table td button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.resenas-generar button[type="submit"] {
+  background: var(--ink-primary);
+  color: #fff;
+  border-color: var(--ink-primary);
+}
+
+.resenas-generar button:disabled,
+.admin-table td button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.resenas-filtro {
+  margin-bottom: 8px;
+}
+
+.resenas-figura {
+  color: var(--ink-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.resenas-rechazo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Páginas públicas */
+
+.resena-publica {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.resena-publica-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.resena-publica-card h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.resena-publica-card p {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.resena-publica-card fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resena-publica-card legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.estrellas-input {
+  display: flex;
+  gap: 4px;
+}
+
+.estrellas-input label {
+  font-size: 32px;
+  line-height: 1;
+  color: var(--border);
+  cursor: pointer;
+}
+
+.estrellas-input label.activa {
+  color: #d4a017;
+}
+
+.estrellas-input input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.estrellas-input label:focus-within {
+  outline: 2px solid var(--ink-secondary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.resena-publica-opcion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resena-publica-comentario {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.resena-publica-comentario textarea {
+  font: inherit;
+  font-weight: normal;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.resena-publica-contador {
+  align-self: flex-end;
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.resena-publica-card button[type="submit"] {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink-primary);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.resena-publica-card button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.resenas-publicas {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.resenas-publicas-resumen {
+  color: var(--ink-secondary);
+}
+
+.resenas-publicas-lista {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resenas-publicas-lista li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.resenas-publicas-lista p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.resenas-publicas-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.resenas-publicas-paginas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}

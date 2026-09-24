@@ -103,6 +103,9 @@ export function ClientesPage() {
           {me && !me.isPlatformAdmin && (me.role === "ADMIN" || me.canHandleInbox) && (
             <Link to="/inbox">Inbox</Link>
           )}
+          {me?.agentesHabilitados?.includes("SEGUIMIENTO_RESENAS") && (
+            <Link to="/resenas">Reseñas</Link>
+          )}
           {me?.role === "ADMIN" && !me.isPlatformAdmin && (
             <>
               <Link to="/agente-whatsapp">Agente de WhatsApp</Link>

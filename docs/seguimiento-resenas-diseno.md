@@ -229,6 +229,29 @@ Pendiente:
 - **Aplicar el schema a la base:** Rocco decidió usar el mismo proyecto de Supabase de Xentech, que tiene datos reales. Se aplica con el workflow `db-migrate.yml` después de mergear, y lo dispara Rocco. Nunca desde una sesión en la nube.
 - **Habilitación por organización:** el toggle del módulo (un valor nuevo de `AgentType` o un flag aparte) queda para la etapa 3, junto con la primera funcionalidad que lo necesite.
 
+### Estado de la etapa 3 (2026-09-24)
+
+Hecha, en código (PR del backend + PR del frontend):
+
+- **Habilitación por organización:** valor nuevo `SEGUIMIENTO_RESENAS` en `AgentType`, con el mismo toggle del panel de plataforma ("Seguimiento y reseñas"). `GET /api/me` devuelve `agentesHabilitados`.
+- **Tokens:** `src/lib/resenas/token.ts` (32 bytes aleatorios en base64url; en la base, solo el sha256). Vencimiento: `ConfigSeguimiento.diasValidezTokenResena`, o 30 días sin config.
+- **Rutas públicas** (`src/routes/resenasPublic.ts`): formulario y publicación por token (el token va en el body, no en la URL, para que no quede en los logs), y `GET /api/public/organizaciones/:slug/resenas` con CORS abierto solo en esa ruta, para la web de la empresa.
+- **Uso único:** publicar hace, en una transacción, un `UPDATE` condicional del token y recién ahí crea la reseña. Probado contra Postgres real: 10 POST concurrentes con el mismo token dan 1 sola reseña.
+- **Panel** (`/resenas` en el frontend): generar link para un cliente (cualquier usuario), ver reseñas y moderar (solo admin; rechazar exige motivo).
+- **Páginas públicas del SPA:** `/r/<token>` (formulario) y `/o/<slug>/resenas` (listado de aprobadas).
+
+Decisiones tomadas en esta etapa, a confirmar por Rocco:
+
+- Un solo toggle para todo el módulo, llamado `SEGUIMIENTO_RESENAS`.
+- Generar links: cualquier usuario de la organización. Moderar: solo el admin.
+- Si el cliente no elige anónimo, se publica `Cliente.nombre` completo, tal como está cargado.
+
+Pendiente:
+
+- **El link se manda a mano** (el vendedor lo copia desde el panel). El envío automático al aceptar un presupuesto es de la etapa 7.
+- **Dominio:** el link se arma con el origen del frontend (`window.location.origin`). Hasta que haya despliegue y dominio (§2), no se pueden mandar links reales.
+- **Aplicar a la base:** el valor nuevo de `AgentType` se aplica junto con el schema de la etapa 2, con `db-migrate.yml`, cuando Rocco lo dispare. Después, correr `prisma/sql/rls_policies.sql` en el SQL Editor de Supabase (ya cubre las 7 tablas nuevas).
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.

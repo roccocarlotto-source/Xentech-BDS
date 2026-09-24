@@ -1,6 +1,11 @@
 // Espejo de src/services/agentToggle.service.ts del backend.
 
-export const AGENT_TYPES = ["WHATSAPP", "DATABASE_MANAGEMENT", "REMINDERS"] as const;
+export const AGENT_TYPES = [
+  "WHATSAPP",
+  "DATABASE_MANAGEMENT",
+  "REMINDERS",
+  "SEGUIMIENTO_RESENAS",
+] as const;
 
 export type AgentType = (typeof AGENT_TYPES)[number];
 
@@ -8,6 +13,7 @@ export const AGENT_TYPE_LABELS: Record<AgentType, string> = {
   WHATSAPP: "WhatsApp",
   DATABASE_MANAGEMENT: "Gestión de base de datos",
   REMINDERS: "Recordatorios",
+  SEGUIMIENTO_RESENAS: "Seguimiento y reseñas",
 };
 
 export interface OrganizationAgentToggles {
