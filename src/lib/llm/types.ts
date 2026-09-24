@@ -36,6 +36,11 @@ export interface LlmCompletionParams {
   model: string;
   messages: LlmMessage[];
   tools: LlmToolDefinition[];
+  // Nombre de una tool de `tools` que el modelo está OBLIGADO a llamar (en
+  // vez de dejarlo elegir libremente, o no llamar ninguna). Pensado para
+  // extracción estructurada (una sola tool, un solo llamado esperado) --
+  // el loop de orquestación del agente no lo usa, ahí el modelo decide.
+  toolChoice?: string;
 }
 
 export interface LlmProvider {

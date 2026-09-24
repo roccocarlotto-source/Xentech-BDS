@@ -252,6 +252,25 @@ Pendiente:
 - **Dominio:** el link se arma con el origen del frontend (`window.location.origin`). Hasta que haya despliegue y dominio (§2), no se pueden mandar links reales.
 - **Aplicar a la base:** el valor nuevo de `AgentType` se aplica junto con el schema de la etapa 2, con `db-migrate.yml`, cuando Rocco lo dispare. Después, correr `prisma/sql/rls_policies.sql` en el SQL Editor de Supabase (ya cubre las 7 tablas nuevas).
 
+### Estado de la etapa 4, paso 1: extracción (2026-09-25)
+
+Hecha, en código (sin persistir nada todavía):
+
+- **`POST /api/presupuestos/import/preview`** (`src/routes/presupuestosImport.ts`, gate igual que `/api/resenas`: `authenticate` + `requireAgentEnabled("SEGUIMIENTO_RESENAS")`, cualquier usuario de la organización): recibe un `.docx`, lo procesa en memoria (no lo guarda) y devuelve `{ archivoNombre, textoExtraido, datos }` — nada se escribe en la base.
+- **`src/services/presupuestoImport.service.ts`:** `mammoth.extractRawText` para el texto plano, después una llamada al `LlmProvider` con una tool forzada (`tool_choice`, agregado a `LlmCompletionParams`/`OpenRouterProvider` en este PR — el loop del agente no lo necesitaba, ahí el modelo elige) para forzar la salida estructurada de los 9 campos de §6.2, con `null` donde no aparece.
+- Modelo configurable por `PRESUPUESTO_EXTRACTION_MODEL` (default `anthropic/claude-3.5-haiku`), **sin probar todavía contra OpenRouter real** (no hay `OPENROUTER_API_KEY` en la nube) — los tests mockean el `LlmProvider`, mismo criterio que `orchestrator.test.ts`.
+- Fixture de prueba: `src/services/__fixtures__/presupuesto-ejemplo.docx`, generado con datos 100% ficticios (no es el presupuesto real pedido en §6.2, que sigue pendiente de Rocco).
+
+Decisión propia, a confirmar por Rocco:
+
+- El campo `vehiculo_o_items` de §6.2 pasó a llamarse **`items`** en el schema y en la tool — §6.2 se escribió antes de que Rocco descartara la opción A y confirmara que el negocio es cartelería, no concesionarias (§2), y el nombre original no tenía sentido para lo que se está presupuestando.
+
+Explícitamente NO cubierto en este paso (queda para pasos siguientes):
+
+- **Persistencia:** no crea `Presupuesto`, `Cliente` ni `Consentimiento`. Falta la pantalla de revisión (donde una persona corrige, matchea o crea el `Cliente`, y marca `seguimientoWhatsapp`) y el endpoint de commit — mismo patrón de dos pasos que `clientesImport.ts`.
+- **Controles de contenido de Word:** §6.2 pide extraerlos de forma determinística antes de recurrir a la IA, si la plantilla los usa. Este paso llama a la IA siempre sobre el texto plano de mammoth; no se investigó si Rocco usa plantillas con controles de contenido.
+- **Presupuesto de ejemplo real:** sigue pendiente (§6.2) — sin uno, no se puede ajustar la extracción contra un caso real ni saber si el prompt/schema actual sirve.
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.

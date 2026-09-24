@@ -29,7 +29,12 @@ interface OpenAiChatMessage {
 export class OpenRouterProvider implements LlmProvider {
   constructor(private readonly apiKey: string) {}
 
-  async complete({ model, messages, tools }: LlmCompletionParams): Promise<LlmCompletionResult> {
+  async complete({
+    model,
+    messages,
+    tools,
+    toolChoice,
+  }: LlmCompletionParams): Promise<LlmCompletionResult> {
     const response = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: {
@@ -40,6 +45,11 @@ export class OpenRouterProvider implements LlmProvider {
         model,
         messages: messages.map(toOpenAiMessage),
         ...(tools.length > 0 ? { tools: tools.map(toOpenAiTool) } : {}),
+        // Formato "function calling" estándar para forzar una tool puntual
+        // -- ver LlmCompletionParams.toolChoice.
+        ...(toolChoice
+          ? { tool_choice: { type: "function", function: { name: toolChoice } } }
+          : {}),
       }),
     });
 
