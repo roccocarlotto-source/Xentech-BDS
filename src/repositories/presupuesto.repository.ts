@@ -1,4 +1,4 @@
-import type { ConsentimientoOrigen, Prisma } from "@prisma/client";
+import type { ConsentimientoOrigen, Prisma, PresupuestoEstado } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { calcularEnviosEmail } from "../lib/seguimiento/envioScheduling";
 
@@ -120,6 +120,23 @@ export const presupuestoRepository = {
       });
 
       return presupuesto;
+    });
+  },
+
+  // Etapa 5, paso 2 (§6.3, punto 4): transición de estado que hace el job
+  // de envío, nunca la pantalla de revisión. `where.estado: { in: desde }`
+  // hace el UPDATE condicional -- si alguien aceptó/rechazó el presupuesto
+  // desde el panel justo en el medio, esto no lo pisa (la fila
+  // simplemente no matchea y count queda en 0).
+  actualizarEstadoSiCoincide(
+    organizationId: string,
+    id: string,
+    desde: PresupuestoEstado[],
+    hasta: PresupuestoEstado,
+  ) {
+    return prisma.presupuesto.updateMany({
+      where: { organizationId, id, estado: { in: desde } },
+      data: { estado: hasta },
     });
   },
 };

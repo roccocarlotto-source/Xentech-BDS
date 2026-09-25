@@ -412,6 +412,14 @@ enum ConsentimientoOrigen {
 
 enum EnvioEstado {
   PROGRAMADO
+  // Etapa 5, paso 2 (§6.3, "idempotente"): estado transitorio mientras el
+  // job de envío tiene la fila reclamada -- el claim (UPDATE condicional
+  // WHERE estado = PROGRAMADO) es lo que evita que dos corridas del job en
+  // paralelo manden el mismo email dos veces. Nunca debería quedar así
+  // mucho tiempo (ver envioJob.ts); si una corrida se cae a mitad de
+  // camino, la fila queda "trabada" en ENVIANDO -- reintentarla a mano es
+  // responsabilidad de quien lo note, no hay job de limpieza todavía.
+  ENVIANDO
   ENVIADO
   FALLIDO
   CANCELADO

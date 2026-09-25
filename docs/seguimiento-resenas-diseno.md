@@ -307,6 +307,25 @@ Explícitamente NO cubierto en este paso (queda para pasos siguientes de la etap
 - **Recepción de respuestas y detección de "BAJA"** (§7, mismo paso de etapa que "envío"): tampoco cubierto todavía.
 - **No se puede probar de punta a punta:** las tablas de la etapa 2 (incluida `envios`) siguen sin aplicarse a la base real (`db-migrate.yml` sigue sin correrse -- ver el estado de la etapa 2 más arriba).
 
+### Estado de la etapa 5, paso 2: el job que procesa los `Envio` vencidos (2026-09-25)
+
+Hecha, en código, TODA la lógica de negocio del job -- pero sin ningún proveedor de email real conectado todavía (§3 sigue sin elegirse, es decisión de Rocco, preguntada por mensaje -- ver el doc de Cowork):
+
+- **`src/lib/email/emailProvider.ts`:** interfaz `EmailProvider` (mismo patrón que `LlmProvider`) + `getEmailProvider()`, que hoy siempre devuelve `null` -- a propósito, no hay ninguna clase que la implemente todavía. `envioJob.ts` trata `null` como "la función de envío no está configurada": no lee ni toca ninguna fila de `Envio` en ese caso, para no gastarles `intentos` contra algo que no existe. El poller (`envioJobPoller.ts`, arrancado desde `server.ts`, tick de 60 s) corre siempre, igual que el de WhatsApp, pero queda "encendido pero inactivo" hasta que se elija un proveedor.
+- **`src/lib/seguimiento/envioChecks.ts`:** `evaluarPrecondicionesEnvio()`, pura -- las 4 verificaciones de §6.3 punto 2 (presupuesto abierto, sin baja, consentimiento válido, máximo de intentos), en ese orden. Devuelve `CANCELADO` (el presupuesto se cerró, hubo baja, no hay consentimiento o el cliente no tiene email -- nunca va a poder enviarse) o `FALLIDO` (se agotaron los reintentos de algo en principio transitorio) para poder distinguir los dos casos en el job.
+- **`src/lib/seguimiento/envioVentana.ts`:** `estaDentroDeVentanaDeEnvio()` -- el chequeo de horario/zona horaria de §6.3 (`horaFinEnvio` es exclusive, comentario del schema). Se chequea ANTES de reclamar la fila (si está fuera de horario, ni se intenta -- se reintenta en un tick futuro).
+- **`src/lib/seguimiento/envioContenido.ts`:** `armarEmailSeguimiento()` -- usa la plantilla de `ConfigSeguimiento.plantillas.EMAIL[paso - 1]` si existe (todavía nunca, sin panel -- etapa 8), si no un texto genérico. Agrega SIEMPRE la línea de baja (§5: "no va en la plantilla, la agrega el motor de envío a todo email") sea cual sea el caso.
+- **`src/lib/seguimiento/envioJob.ts`:** `procesarEnviosVencidos()`, el orquestador -- deps inyectables, mismo patrón que `inboundJobProcessor.ts`/`resena.service.ts`. Por cada `Envio` vencido (canal EMAIL, ordenados por `programadoPara`): chequea la ventana horaria de SU organización, reclama la fila con un UPDATE condicional (`estado = PROGRAMADO` -> `ENVIANDO`, incrementando `intentos` en el mismo UPDATE -- si el count es 0, otra corrida ya se la llevó) -- eso, sumado a la `claveIdempotencia` única que ya existía, es el "idempotente" de §6.3. Corre las precondiciones, arma el email y llama a `EmailProvider.enviar()`. Éxito: `ENVIADO` + `MensajeSeguimiento` saliente + `Presupuesto` a `EN_SEGUIMIENTO` (si estaba `PENDIENTE`). Falla transitoria con intentos disponibles: vuelve a `PROGRAMADO` (mismo `programadoPara`, sin backoff -- decisión propia). Después de CUALQUIER resultado terminal (`ENVIADO`, `CANCELADO` o `FALLIDO`), chequea si quedan otros `Envio` pendientes de ese presupuesto: si no queda ninguno, lo pasa a `SIN_RESPUESTA` (si seguía `PENDIENTE`/`EN_SEGUIMIENTO`) -- interpretación propia de "marca sin_respuesta si terminó la secuencia" (§6.3 punto 4), a confirmar por Rocco: corre apenas se resuelve el ÚLTIMO paso programado, no después de esperar una respuesta (no hay mecanismo de recepción de respuestas todavía, así que nada puede "ganarle" a esta marca en el medio).
+- **`EnvioEstado` (schema):** se agregó `ENVIANDO` (estado transitorio del claim, ver comentario ahí) -- adición pura, sin tocar filas ni tablas existentes.
+- Tests: `envioChecks.test.ts`, `envioContenido.test.ts`, `envioVentana.test.ts`, `envioJob.test.ts` (con fakes, sin Prisma real -- mismo motivo que el resto). Backend 213 tests, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto en este paso (queda para pasos siguientes de la etapa 5, o depende de elegir proveedor):
+
+- **Ningún proveedor de email real conectado.** Elegir entre Resend/SendGrid (decisión de Rocco, ya preguntada por mensaje) y escribir la clase concreta en `src/lib/email/` que implemente `EmailProvider`, más la env var con la API key.
+- **Recepción de respuestas y detección de "BAJA"** (§7, mismo paso de etapa que "envío"): sigue sin cubrir. Depende del proveedor elegido (formato del webhook de entrada).
+- **No probado contra Postgres real:** mismo motivo que el paso 1 (`npm test` no levanta DB) -- ni contra un proveedor de email real (no hay ninguno conectado).
+- **Sin backoff en los reintentos** ni límite de tasa de envío por organización -- si hace falta, es un paso siguiente.
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.

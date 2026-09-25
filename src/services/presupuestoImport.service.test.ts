@@ -253,6 +253,10 @@ function crearDeps(): {
         crearConConsentimientosLlamadas.push(input);
         return { id: "presu-1", ...input } as unknown as Presupuesto;
       },
+      // No lo usa este flujo (etapa 4) -- lo usa el job de envío (etapa 5,
+      // paso 2, envioJob.ts). Stub sin comportamiento, solo para satisfacer
+      // el tipo de PresupuestoRepository.
+      actualizarEstadoSiCoincide: async () => ({ count: 0 }),
     },
     ahora: () => AHORA,
   };
