@@ -1,4 +1,4 @@
-import type { EnvioEstado, PresupuestoEstado } from "@prisma/client";
+import type { CanalSeguimiento, EnvioEstado, PresupuestoEstado } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 
 // Etapa 5, paso 2 de docs/seguimiento-resenas-diseno.md: acceso a datos para
@@ -9,25 +9,35 @@ export interface EnvioVencido {
   organizationId: string;
   presupuestoId: string;
   paso: number;
+  canal: CanalSeguimiento;
   intentos: number;
+  claveIdempotencia: string;
   presupuesto: {
     estado: PresupuestoEstado;
     monto: number | null;
     moneda: string | null;
-    cliente: { id: string; nombre: string; personaContacto: string | null; email: string | null };
-    // Filtrado por canal EMAIL en la query de más abajo -- a lo sumo una
-    // fila (presupuesto.repository.ts crea una sola por presupuesto).
-    consentimientos: Array<{ bajaEn: Date | null }>;
+    cliente: {
+      id: string;
+      nombre: string;
+      personaContacto: string | null;
+      email: string | null;
+      telefono: string | null;
+    };
+    // Los de los dos canales: el job elige el que corresponde al canal de
+    // ESTE Envio (antes la query filtraba por EMAIL, que era todo lo que
+    // había).
+    consentimientos: Array<{ canal: CanalSeguimiento; bajaEn: Date | null }>;
   };
 }
 
 export const envioRepository = {
   // Ordenado por programadoPara (el más atrasado primero) -- si el job
   // estuvo caído un tiempo, procesa en el mismo orden en que se hubieran
-  // mandado. Filtra por canal EMAIL a propósito (WhatsApp es la etapa 6).
+  // mandado. Desde la etapa 6 trae los dos canales: el job resuelve cada
+  // fila según su `canal`.
   async buscarVencidos(now: Date, limit: number): Promise<EnvioVencido[]> {
     const envios = await prisma.envio.findMany({
-      where: { estado: "PROGRAMADO", canal: "EMAIL", programadoPara: { lte: now } },
+      where: { estado: "PROGRAMADO", programadoPara: { lte: now } },
       orderBy: { programadoPara: "asc" },
       take: limit,
       select: {
@@ -35,14 +45,24 @@ export const envioRepository = {
         organizationId: true,
         presupuestoId: true,
         paso: true,
+        canal: true,
         intentos: true,
+        claveIdempotencia: true,
         presupuesto: {
           select: {
             estado: true,
             monto: true,
             moneda: true,
-            cliente: { select: { id: true, nombre: true, personaContacto: true, email: true } },
-            consentimientos: { where: { canal: "EMAIL" }, select: { bajaEn: true } },
+            cliente: {
+              select: {
+                id: true,
+                nombre: true,
+                personaContacto: true,
+                email: true,
+                telefono: true,
+              },
+            },
+            consentimientos: { select: { canal: true, bajaEn: true } },
           },
         },
       },
@@ -99,6 +119,19 @@ export const envioRepository = {
     return prisma.envio.updateMany({
       where: { id, organizationId },
       data: { estado: "PROGRAMADO", ultimoError: motivo },
+    });
+  },
+
+  // Etapa 6: devuelve la fila a PROGRAMADO SIN gastarle el intento. Es
+  // para el caso "el envío no se intentó por falta de configuración"
+  // (p. ej. no hay plantilla de WhatsApp para ese paso): no es un fallo
+  // del proveedor, y castigarlo con un intento haría que un presupuesto
+  // se quedara sin seguimiento por algo que el admin todavía puede
+  // arreglar.
+  devolverSinGastarIntento(id: string, organizationId: string, motivo: string) {
+    return prisma.envio.updateMany({
+      where: { id, organizationId, estado: "ENVIANDO" },
+      data: { estado: "PROGRAMADO", ultimoError: motivo, intentos: { decrement: 1 } },
     });
   },
 

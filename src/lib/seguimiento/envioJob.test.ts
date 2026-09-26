@@ -19,6 +19,10 @@ function depsBase(overrides: Partial<EnvioJobDeps> = {}): EnvioJobDeps {
     buscarConfig: async () => null,
     getEmailProvider: () => null,
     replyToBase: () => null,
+    puedeEnviarPorWhatsapp: () => false,
+    ultimoMensajeEntranteWhatsapp: async () => null,
+    enviarPorWhatsapp: async () => ({ ok: false, error: "no configurado en el test" }),
+    devolverSinGastarIntento: async () => undefined,
     ...overrides,
   };
 }
@@ -29,7 +33,9 @@ function envioDePrueba(overrides: Partial<EnvioVencido> = {}): EnvioVencido {
     organizationId: "org-1",
     presupuestoId: "presu-1",
     paso: 1,
+    canal: "EMAIL",
     intentos: 0,
+    claveIdempotencia: "presu-1:1:EMAIL",
     presupuesto: {
       estado: "PENDIENTE",
       monto: null,
@@ -39,8 +45,9 @@ function envioDePrueba(overrides: Partial<EnvioVencido> = {}): EnvioVencido {
         nombre: "Panadería La Espiga",
         personaContacto: "Rosana Fernández",
         email: "cliente@example.com",
+        telefono: "+59899111222",
       },
-      consentimientos: [{ bajaEn: null }],
+      consentimientos: [{ canal: "EMAIL" as const, bajaEn: null }],
     },
     ...overrides,
   };
@@ -56,7 +63,7 @@ function providerQueFalla(error = "timeout del proveedor"): EmailProvider {
   return { enviar: async () => ({ ok: false, error }) as EmailEnvioResultado };
 }
 
-test("procesarEnviosVencidos no toca nada si no hay proveedor de email configurado", async () => {
+test("procesarEnviosVencidos no toca nada si NINGÚN canal está configurado", async () => {
   let seLlamoBuscarVencidos = false;
   const deps = depsBase({
     buscarVencidos: async () => {
@@ -77,6 +84,7 @@ test("procesarEnviosVencidos no toca nada si no hay proveedor de email configura
     reintentados: 0,
     saltadosPorHorario: 0,
     saltadosPorCarrera: 0,
+    saltadosPorCanalSinConfigurar: 0,
   });
 });
 
@@ -196,7 +204,13 @@ test("procesarEnviosVencidos cancela (sin reintentar) si el cliente no tiene ema
       envioDePrueba({
         presupuesto: {
           ...envioDePrueba().presupuesto,
-          cliente: { id: "cli-1", nombre: "Sin email", personaContacto: null, email: null },
+          cliente: {
+            id: "cli-1",
+            nombre: "Sin email",
+            personaContacto: null,
+            email: null,
+            telefono: null,
+          },
         },
       }),
     ],
@@ -282,4 +296,164 @@ test("procesarEnviosVencidos usa la plantilla de ConfigSeguimiento correspondien
   await procesarEnviosVencidos(AHORA, 50, deps);
 
   assert.equal(asuntoEnviado, "Paso 2 -- ¿alguna novedad?");
+});
+
+// --- etapa 6: envíos por WhatsApp ---
+
+function envioWhatsapp(overrides: Partial<EnvioVencido> = {}): EnvioVencido {
+  const base = envioDePrueba();
+  return {
+    ...base,
+    canal: "WHATSAPP",
+    claveIdempotencia: "presu-1:1:WHATSAPP",
+    presupuesto: {
+      ...base.presupuesto,
+      consentimientos: [{ canal: "WHATSAPP" as const, bajaEn: null }],
+    },
+    ...overrides,
+  };
+}
+
+test("un Envio de WhatsApp fuera de la ventana de 24 h sale como plantilla", async () => {
+  const mandados: unknown[] = [];
+  const deps = depsBase({
+    buscarVencidos: async () => [envioWhatsapp()],
+    reclamar: async () => ({ intentos: 1 }),
+    buscarConfig: async () => ({
+      horaInicioEnvio: 0,
+      horaFinEnvio: 24,
+      zonaHoraria: "America/Montevideo",
+      maxIntentos: 3,
+      plantillas: { WHATSAPP: [{ nombre: "seguimiento_1", idioma: "es" }] },
+    }),
+    puedeEnviarPorWhatsapp: () => true,
+    ultimoMensajeEntranteWhatsapp: async () => null,
+    enviarPorWhatsapp: async (params) => {
+      mandados.push(params.contenido);
+      return { ok: true, providerMessageId: "wamid.1" };
+    },
+  });
+
+  const resultado = await procesarEnviosVencidos(AHORA, 50, deps);
+
+  assert.equal(resultado.enviados, 1);
+  assert.deepEqual(mandados, [
+    {
+      modo: "plantilla",
+      plantilla: { nombre: "seguimiento_1", idioma: "es" },
+      parametros: ["Rosana Fernández"],
+    },
+  ]);
+});
+
+test("con la ventana abierta sale texto libre, sin plantilla", async () => {
+  const mandados: Array<{ modo: string }> = [];
+  const deps = depsBase({
+    buscarVencidos: async () => [envioWhatsapp()],
+    reclamar: async () => ({ intentos: 1 }),
+    buscarConfig: async () => ({
+      horaInicioEnvio: 0,
+      horaFinEnvio: 24,
+      zonaHoraria: "America/Montevideo",
+      maxIntentos: 3,
+      plantillas: {},
+    }),
+    puedeEnviarPorWhatsapp: () => true,
+    // El cliente escribió hace una hora.
+    ultimoMensajeEntranteWhatsapp: async () => new Date(AHORA.getTime() - 60 * 60 * 1000),
+    enviarPorWhatsapp: async (params) => {
+      mandados.push(params.contenido);
+      return { ok: true, providerMessageId: "wamid.1" };
+    },
+  });
+
+  const resultado = await procesarEnviosVencidos(AHORA, 50, deps);
+
+  assert.equal(resultado.enviados, 1);
+  assert.equal(mandados[0].modo, "texto");
+});
+
+test("fuera de la ventana y sin plantilla configurada: se devuelve sin gastar el intento", async () => {
+  const devueltos: string[] = [];
+  let seIntentoMandar = false;
+  const deps = depsBase({
+    buscarVencidos: async () => [envioWhatsapp()],
+    reclamar: async () => ({ intentos: 1 }),
+    buscarConfig: async () => ({
+      horaInicioEnvio: 0,
+      horaFinEnvio: 24,
+      zonaHoraria: "America/Montevideo",
+      maxIntentos: 3,
+      plantillas: {},
+    }),
+    puedeEnviarPorWhatsapp: () => true,
+    ultimoMensajeEntranteWhatsapp: async () => null,
+    devolverSinGastarIntento: async (_id, _org, motivo) => {
+      devueltos.push(motivo);
+    },
+    enviarPorWhatsapp: async () => {
+      seIntentoMandar = true;
+      return { ok: true, providerMessageId: "x" };
+    },
+  });
+
+  const resultado = await procesarEnviosVencidos(AHORA, 50, deps);
+
+  assert.equal(seIntentoMandar, false);
+  assert.equal(resultado.saltadosPorCanalSinConfigurar, 1);
+  assert.equal(resultado.enviados, 0);
+  assert.match(devueltos[0], /plantilla de WhatsApp/);
+});
+
+test("sin WhatsApp configurado, sus Envio se saltean sin reclamar (el de email igual sale)", async () => {
+  let reclamados = 0;
+  const deps = depsBase({
+    buscarVencidos: async () => [
+      envioWhatsapp({ id: "env-wa" }),
+      envioDePrueba({ id: "env-mail" }),
+    ],
+    reclamar: async () => {
+      reclamados += 1;
+      return { intentos: 1 };
+    },
+    getEmailProvider: providerQueEnviaOk,
+    puedeEnviarPorWhatsapp: () => false,
+  });
+
+  const resultado = await procesarEnviosVencidos(AHORA, 50, deps);
+
+  assert.equal(resultado.saltadosPorCanalSinConfigurar, 1);
+  assert.equal(resultado.enviados, 1);
+  // Solo se reclamó el de email: el de WhatsApp no gastó intento.
+  assert.equal(reclamados, 1);
+});
+
+test("un cliente sin teléfono cancela el Envio de WhatsApp, no el de email", async () => {
+  const finales: Array<{ estado: string; motivo: string }> = [];
+  const deps = depsBase({
+    buscarVencidos: async () => [
+      envioWhatsapp({
+        presupuesto: {
+          ...envioWhatsapp().presupuesto,
+          cliente: {
+            id: "cli-1",
+            nombre: "Sin teléfono",
+            personaContacto: null,
+            email: "igual@tiene.email",
+            telefono: null,
+          },
+        },
+      }),
+    ],
+    reclamar: async () => ({ intentos: 1 }),
+    puedeEnviarPorWhatsapp: () => true,
+    marcarEstadoFinal: async (_id, _org, estado, motivo) => {
+      finales.push({ estado, motivo });
+    },
+  });
+
+  const resultado = await procesarEnviosVencidos(AHORA, 50, deps);
+
+  assert.equal(resultado.cancelados, 1);
+  assert.match(finales[0].motivo, /no tiene teléfono/);
 });

@@ -1,4 +1,4 @@
-import type { ClasificacionRespuesta } from "@prisma/client";
+import type { CanalSeguimiento, ClasificacionRespuesta } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 
 // Etapa 5 (§6.3 punto 3: "envía por el canal y registra el Mensaje", y
@@ -8,6 +8,9 @@ import { prisma } from "../lib/prisma";
 export const mensajeSeguimientoRepository = {
   crearSaliente(data: {
     organizationId: string;
+    // Etapa 6: el canal por el que salió de verdad. Antes era siempre
+    // EMAIL porque era el único que mandaba.
+    canal: CanalSeguimiento;
     presupuestoId: string;
     clienteId: string;
     envioId: string;
@@ -24,7 +27,7 @@ export const mensajeSeguimientoRepository = {
         presupuestoId: data.presupuestoId,
         clienteId: data.clienteId,
         envioId: data.envioId,
-        canal: "EMAIL",
+        canal: data.canal,
         direccion: "OUTBOUND",
         contenido: data.contenido,
         fecha: data.fecha,
@@ -97,6 +100,19 @@ export const mensajeSeguimientoRepository = {
       where: { id, organizationId, clasificacionIa: null },
       data,
     });
+  },
+
+  // Etapa 6: cuándo fue la última vez que el cliente nos escribió por
+  // WhatsApp. Es lo que define si la ventana de 24 h de Meta está abierta
+  // (§6.4) y por lo tanto si se puede mandar texto libre o hace falta una
+  // plantilla aprobada.
+  async ultimoEntranteWhatsapp(organizationId: string, clienteId: string): Promise<Date | null> {
+    const fila = await prisma.mensajeSeguimiento.findFirst({
+      where: { organizationId, clienteId, canal: "WHATSAPP", direccion: "INBOUND" },
+      orderBy: { fecha: "desc" },
+      select: { fecha: true },
+    });
+    return fila?.fecha ?? null;
   },
 };
 
