@@ -11,7 +11,7 @@ import * as presupuestoImportService from "../services/presupuestoImport.service
 // gate que /api/resenas (SEGUIMIENTO_RESENAS habilitado, cualquier usuario
 // de la organización -- no hace falta ser admin para cargar un
 // presupuesto):
-// - /preview (paso 1): sube el .docx, extrae texto + IA, no persiste nada.
+// - /preview (paso 1): sube el .docx o .doc, extrae texto + IA, no persiste nada.
 // - /commit (paso 2): recibe lo que la persona confirmó en la pantalla de
 //   revisión (JSON, sin el archivo) y crea Cliente (si hace falta),
 //   Presupuesto y su(s) Consentimiento(s).
@@ -34,10 +34,10 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE_BYTES },
   fileFilter(_req, file, cb) {
-    if (file.originalname.toLowerCase().endsWith(".docx")) {
+    if (presupuestoImportService.esExtensionSoportada(file.originalname)) {
       cb(null, true);
     } else {
-      cb(new AppError("Formato de archivo no soportado -- solo .docx", 400));
+      cb(new AppError(presupuestoImportService.MENSAJE_FORMATO_NO_SOPORTADO, 400));
     }
   },
 });

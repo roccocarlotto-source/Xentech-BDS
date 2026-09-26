@@ -211,13 +211,14 @@ export function ImportPresupuestosPage() {
       {paso === "elegir" && (
         <section className="import-card">
           <p>
-            Subí el presupuesto en .docx. La IA extrae los datos del cliente, el monto y la fecha --
-            vos los revisás y corregís antes de guardar, nada se guarda todavía en este paso.
+            Subí el presupuesto en Word (.docx o .doc). La IA extrae los datos del cliente, el monto
+            y la fecha -- vos los revisás y corregís antes de guardar, nada se guarda todavía en
+            este paso.
           </p>
           <input
             type="file"
             aria-label="Archivo del presupuesto"
-            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
           />
           <button

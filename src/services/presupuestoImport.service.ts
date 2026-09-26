@@ -1,4 +1,5 @@
 import mammoth from "mammoth";
+import WordExtractor from "word-extractor";
 import type { Presupuesto, Prisma } from "@prisma/client";
 import { AppError } from "../utils/AppError";
 import { getLlmProvider } from "../lib/llm/provider";
@@ -96,17 +97,23 @@ const EXTRACCION_TOOL: LlmToolDefinition = {
   },
 };
 
-const SYSTEM_PROMPT = `Extraés datos de presupuestos comerciales (empresa de cartelería/señalética) a partir del texto plano de un documento .docx.
+const SYSTEM_PROMPT = `Extraés datos de presupuestos comerciales (empresa de cartelería/señalética) a partir del texto plano de un documento de Word (.docx o .doc).
 
 Reglas:
 - Usá SOLO lo que está escrito en el texto. Si un dato no aparece o no estás seguro, poné null -- nunca inventes ni completes con un valor plausible.
 - Llamá a la tool ${EXTRACCION_TOOL_NAME} exactamente una vez, con los 9 campos.
 - El monto va como número, sin símbolo de moneda ni separadores de miles.
-- La fecha de emisión, si aparece, va como YYYY-MM-DD.`;
+- La fecha de emisión, si aparece, va como YYYY-MM-DD.
+
+Formato habitual de estos presupuestos (líneas "ETIQUETA: valor"), para ubicar cada dato -- si el texto no lo trae, igual va null:
+- "MANTENIMIENTO DE LA OFERTA: N días" es la validez.
+- "$" solo es UYU; "U$S" o "USD" es USD.
+- Si hay varias opciones alternativas ("OPCION 1", "OPCION 2") con importes distintos, no hay un monto total único: monto va null y las opciones se describen en items.
+- El vendedor suele aparecer en la firma del final, antes de "p. <nombre de la empresa emisora>".`;
 
 export interface PresupuestoImportDeps {
   llmProvider: LlmProvider;
-  extraerTexto: (buffer: Buffer) => Promise<string>;
+  extraerTexto: (buffer: Buffer, nombreArchivo: string) => Promise<string>;
   modelo: string;
 }
 
@@ -114,7 +121,7 @@ const defaultDeps: PresupuestoImportDeps = {
   get llmProvider() {
     return getLlmProvider();
   },
-  extraerTexto: extraerTextoDocx,
+  extraerTexto: extraerTextoDocumento,
   get modelo() {
     return resolverModelo();
   },
@@ -142,6 +149,63 @@ export async function extraerTextoDocx(buffer: Buffer): Promise<string> {
     );
   }
   return texto;
+}
+
+// .doc = formato binario de Word 97-2003. Los presupuestos reales de la
+// empresa (docs/ejemplos-presupuestos/, 2026-09-26) están en este formato,
+// que mammoth no lee. word-extractor lo parsea en JavaScript puro, sin
+// LibreOffice ni binarios externos en el servidor.
+export async function extraerTextoDoc(buffer: Buffer): Promise<string> {
+  let cuerpo: string;
+  try {
+    const documento = await new WordExtractor().extract(buffer);
+    cuerpo = documento.getBody();
+  } catch {
+    throw new AppError("No se pudo leer el archivo -- ¿es un .doc válido?", 400);
+  }
+
+  const texto = cuerpo.trim();
+  if (!texto) {
+    throw new AppError(
+      "No se pudo extraer texto del documento (¿está vacío o es una imagen?)",
+      400,
+    );
+  }
+  return texto;
+}
+
+export const EXTENSIONES_SOPORTADAS = [".docx", ".doc"] as const;
+
+export const MENSAJE_FORMATO_NO_SOPORTADO =
+  "Formato de archivo no soportado -- solo documentos de Word (.docx o .doc)";
+
+export function esExtensionSoportada(nombreArchivo: string): boolean {
+  const nombre = nombreArchivo.toLowerCase();
+  return EXTENSIONES_SOPORTADAS.some((ext) => nombre.endsWith(ext));
+}
+
+// Firmas de los dos formatos: un .docx es un ZIP ("PK\x03\x04"), un .doc
+// es un archivo OLE/Compound File (D0 CF 11 E0 A1 B1 1A E1).
+const FIRMA_ZIP = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+const FIRMA_OLE = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+// La extensión solo decide si el archivo se acepta; el lector se elige por
+// el CONTENIDO. Un .doc renombrado a .docx (o al revés) es común cuando
+// alguien "cambia la extensión" a mano, y así se lee igual.
+export async function extraerTextoDocumento(
+  buffer: Buffer,
+  nombreArchivo: string,
+): Promise<string> {
+  if (!esExtensionSoportada(nombreArchivo)) {
+    throw new AppError(MENSAJE_FORMATO_NO_SOPORTADO, 400);
+  }
+  if (buffer.subarray(0, FIRMA_OLE.length).equals(FIRMA_OLE)) {
+    return extraerTextoDoc(buffer);
+  }
+  if (buffer.subarray(0, FIRMA_ZIP.length).equals(FIRMA_ZIP)) {
+    return extraerTextoDocx(buffer);
+  }
+  throw new AppError("No se pudo leer el archivo -- ¿es un documento de Word válido?", 400);
 }
 
 function parseArgumentosExtraidos(argumentos: Record<string, unknown>): DatosExtraidosPresupuesto {
@@ -199,11 +263,11 @@ export async function previewImportPresupuesto(
   if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
     throw new AppError("El archivo supera el tamaño máximo permitido", 400);
   }
-  if (!originalname.toLowerCase().endsWith(".docx")) {
-    throw new AppError("Formato de archivo no soportado -- solo .docx", 400);
+  if (!esExtensionSoportada(originalname)) {
+    throw new AppError(MENSAJE_FORMATO_NO_SOPORTADO, 400);
   }
 
-  const textoExtraido = await deps.extraerTexto(buffer);
+  const textoExtraido = await deps.extraerTexto(buffer, originalname);
   const datos = await extraerDatosPresupuesto(textoExtraido, deps);
 
   return { archivoNombre: originalname, textoExtraido, datos };

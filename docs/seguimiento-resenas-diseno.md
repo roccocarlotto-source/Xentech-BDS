@@ -326,6 +326,35 @@ Explícitamente NO cubierto en este paso (queda para pasos siguientes de la etap
 - **No probado contra Postgres real:** mismo motivo que el paso 1 (`npm test` no levanta DB) -- ni contra un proveedor de email real (no hay ninguno conectado).
 - **Sin backoff en los reintentos** ni límite de tasa de envío por organización -- si hace falta, es un paso siguiente.
 
+### Etapa 4: soporte de `.doc` y lo que muestran los presupuestos reales (2026-09-26)
+
+Rocco subió 4 presupuestos reales a `docs/ejemplos-presupuestos/`. **Tienen datos reales de clientes**, así que el repo pasó a privado ese mismo día (ver "Visibilidad del repo" más abajo). Nunca usarlos como fixture de tests ni copiar su contenido a código, commits o PRs.
+
+**Hecho:** la importación acepta `.doc` (Word 97-2003), que es el formato en que la empresa guarda sus presupuestos y que `mammoth` no lee. Detalle:
+
+- Se usa `word-extractor` (JavaScript puro, sin binarios en el servidor).
+- El lector se elige por el contenido del archivo (firma ZIP u OLE), no por la extensión, así que un archivo mal renombrado se lee igual.
+- El fixture `src/services/__fixtures__/presupuesto-ejemplo.doc` es el `.docx` ficticio de siempre convertido con LibreOffice.
+
+**Qué muestran los 4 presupuestos reales:**
+
+- **Formato:** texto plano con líneas `ETIQUETA: valor`, sin controles de contenido de Word. El respaldo determinístico de §6.2 no aplica; la IA sobre el texto es el camino.
+- **Cliente:** la empresa va en `EMPRESA:` y la persona de contacto en la línea siguiente ("Sra. …"), a veces con el celular en la misma línea. En uno de los 4 no hay empresa, solo la persona.
+- **Email del cliente: no aparece en ninguno.** El teléfono aparece en 2 de 4. Consecuencia directa para la etapa 5: si el email no se carga a mano en la revisión, el seguimiento por email no tiene a quién escribir. **Decisión abierta para Rocco:** ¿el email es obligatorio en la revisión, o el canal principal pasa a ser WhatsApp?
+- **Montos:** en pesos (`$`), casi siempre "+ IVA". Hay presupuestos con varias opciones alternativas ("OPCION 1", "OPCION 2") y con ítems adicionales sueltos, así que no siempre hay un total único. El prompt ahora dice que en ese caso `monto` va `null`.
+- **Validez:** siempre como "MANTENIMIENTO DE LA OFERTA: 15 días" (días desde la fecha, no una fecha de vencimiento).
+- **Vendedor:** en la firma, antes de "p. Imagen Visual".
+- **Otros datos que la IA hoy no extrae:** plazo de producción, forma de pago, dirección de la obra y condiciones generales.
+
+Sin probar todavía contra OpenRouter real (no hay `OPENROUTER_API_KEY` en la nube). Cuando haya una clave, correr la extracción sobre los 4 ejemplos es la prueba que falta.
+
+### Visibilidad del repo
+
+Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**
+
+1. Mover los ejemplos a un lugar que siga privado.
+2. Sacarlos de TODO el historial de git: el commit `5f695e9` "Add files via upload" y cualquier rama que los contenga. Borrarlos con un commit nuevo no alcanza.
+
 ## 8. Reglas para las sesiones en la nube
 
 - Leer este documento y el código existente antes de proponer cambios.

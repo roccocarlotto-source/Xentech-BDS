@@ -6,6 +6,8 @@ import type { Cliente, Presupuesto, User } from "@prisma/client";
 import type { LlmCompletionParams, LlmCompletionResult, LlmProvider } from "../lib/llm/types";
 import {
   extraerDatosPresupuesto,
+  extraerTextoDoc,
+  extraerTextoDocumento,
   extraerTextoDocx,
   previewImportPresupuesto,
   commitImportPresupuesto,
@@ -49,6 +51,54 @@ test("extraerTextoDocx saca el texto plano de un .docx real", async () => {
 test("extraerTextoDocx tira AppError (no el error crudo de mammoth/JSZip) si el buffer no es un .docx válido", async () => {
   await assert.rejects(
     () => extraerTextoDocx(Buffer.from("no es un docx")),
+    (err: unknown) => err instanceof AppError && err.status === 400,
+  );
+});
+
+// Mismo contenido ficticio que presupuesto-ejemplo.docx, convertido con
+// LibreOffice a Word 97 (.doc) -- el formato en que la empresa guarda sus
+// presupuestos reales. Nunca usar un presupuesto real como fixture.
+const FIXTURE_DOC_PATH = path.join(__dirname, "__fixtures__", "presupuesto-ejemplo.doc");
+
+test("extraerTextoDoc saca el texto plano de un .doc (Word 97) real", async () => {
+  const buffer = await readFile(FIXTURE_DOC_PATH);
+  const texto = await extraerTextoDoc(buffer);
+  assert.match(texto, /Panadería La Espiga/);
+  assert.match(texto, /Martín Sosa/);
+  assert.match(texto, /45\.000/);
+});
+
+test("extraerTextoDoc tira AppError (no el error crudo de word-extractor) si el buffer no es un .doc válido", async () => {
+  await assert.rejects(
+    () => extraerTextoDoc(Buffer.from("no es un doc")),
+    (err: unknown) => err instanceof AppError && err.status === 400,
+  );
+});
+
+test("extraerTextoDocumento elige el extractor por extensión, sin importar mayúsculas", async () => {
+  const doc = await readFile(FIXTURE_DOC_PATH);
+  const docx = await readFile(FIXTURE_PATH);
+  assert.match(await extraerTextoDocumento(doc, "Cliente 22-09-26.DOC"), /Panadería La Espiga/);
+  assert.match(await extraerTextoDocumento(docx, "cliente.Docx"), /Panadería La Espiga/);
+});
+
+test("extraerTextoDocumento elige el lector por el contenido: un .doc renombrado a .docx (y al revés) se lee igual", async () => {
+  const doc = await readFile(FIXTURE_DOC_PATH);
+  const docx = await readFile(FIXTURE_PATH);
+  assert.match(await extraerTextoDocumento(doc, "renombrado.docx"), /Panadería La Espiga/);
+  assert.match(await extraerTextoDocumento(docx, "renombrado.doc"), /Panadería La Espiga/);
+});
+
+test("extraerTextoDocumento rechaza con 400 un archivo con extensión de Word que no es un documento de Word", async () => {
+  await assert.rejects(
+    () => extraerTextoDocumento(Buffer.from("texto plano disfrazado"), "presupuesto.doc"),
+    (err: unknown) => err instanceof AppError && err.status === 400,
+  );
+});
+
+test("extraerTextoDocumento rechaza extensiones que no son de Word", async () => {
+  await assert.rejects(
+    () => extraerTextoDocumento(Buffer.from("x"), "presupuesto.pdf"),
     (err: unknown) => err instanceof AppError && err.status === 400,
   );
 });
@@ -146,7 +196,7 @@ test("extraerDatosPresupuesto tira AppError 502 si los argumentos no matchean el
   );
 });
 
-test("previewImportPresupuesto rechaza archivos que no son .docx", async () => {
+test("previewImportPresupuesto rechaza archivos que no son de Word", async () => {
   const llm = llmQueDevuelve(null);
   await assert.rejects(
     () =>
