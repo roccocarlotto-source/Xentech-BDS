@@ -44,7 +44,11 @@ jobs:
           done
           exit 1
 
+      # `shell: bash` = `bash -eo pipefail`. Sin pipefail, el `| tee` se come
+      # el codigo de salida del smoke test y el job queda verde aunque falle
+      # (mismo bug que habia en db-migrate.yml, ver el comentario alla).
       - name: e2e smoke test
+        shell: bash
         run: npm run e2e:smoke 2>&1 | tee /tmp/e2e-smoke.log
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
