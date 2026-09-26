@@ -52,6 +52,22 @@ Evaluar antes de empezar:
     - **Aplicar el schema nuevo a una base:** antes hay que separar Supabase en desarrollo y producción, o que Rocco acepte explícitamente aplicarlo sobre la base real.
     - **Mandar links de reseña reales:** antes hay que desplegar. Recomendación: el mismo esquema que PlataformaCRM, backend en Render (plan pago siempre encendido, por el poller) y frontend en Vercel (dominios personalizados con SSL automático), más el subdominio de la web de la empresa.
 
+### Decisiones de Rocco (2026-09-26): canal, proveedor de email, reseñas e importación
+
+Preguntadas al ver que ninguno de los 4 presupuestos reales trae el email del cliente y que el teléfono aparece en 2 de 4 (ver "Etapa 4: soporte de `.doc`…" más abajo).
+
+1. **Canal del seguimiento: los dos, email si hay email y WhatsApp si no.** No es "email obligatorio en la revisión" ni "WhatsApp en lugar de email": el canal se resuelve por presupuesto según el dato que haya. Así el motor de email de la etapa 5 sirve tal como está y WhatsApp se suma cuando existan credenciales de Meta. Consecuencias a resolver al implementarlo:
+   - La revisión de la importación no exige email, pero sí exige que haya **al menos uno** de los dos datos (email o teléfono): sin ninguno no hay seguimiento posible y guardar el presupuesto igual solo esconde el problema.
+   - La programación de `Envio` pasa a elegir el canal por presupuesto. Con los dos datos gana email (más barato, sin ventana de 24 h ni plantillas de Meta); WhatsApp es **respaldo, no un canal paralelo** — un mismo paso de la secuencia no se manda por los dos.
+   - El consentimiento sigue siendo por canal (§5), sin cambios: el de WhatsApp lo marca la persona en la revisión, el de email es la relación precontractual.
+2. **Proveedor de email: Resend.** Falta la clase concreta en `src/lib/email/` que implemente `EmailProvider` (la interfaz ya existe y `getEmailProvider()` hoy devuelve `null` a propósito) más la env var con la API key. La recepción de respuestas y la detección de "BAJA" (§6.4, §7) van por el webhook de entrada de Resend.
+3. **Nombre en las reseñas públicas: lo elige quien deja la reseña**, entre anónimo y **nombre + inicial del apellido** ("Laura M."). Dos cambios respecto de lo que hay hoy:
+   - La opción no anónima publica el nombre **abreviado**, no `Cliente.nombre` entero. La abreviación se calcula al publicar y se guarda en `Resena.nombreVisible`, que sigue siendo una copia y no una referencia viva.
+   - En `/r/<token>` las dos opciones van como **botones**, no como radios: elegir tiene que ser una sola acción.
+4. **Nombre del cliente al importar: los dos, en campos separados.** La empresa (`EMPRESA:`) identifica al cliente y la persona de contacto ("Sra. …") es a quién se le escribe; son datos distintos y los dos se usan. Hoy `Cliente` tiene un solo `nombre`, así que hace falta un campo nuevo (en `Cliente` o en `Presupuesto`, a definir al implementarlo). En el presupuesto que no trae empresa, la persona queda como único nombre.
+
+**Sigue abierta:** dominio y hosting (más arriba en esta misma sección y `docs/deployment.md`). No bloquea nada de lo de arriba; sí bloquea mandar links de reseña reales.
+
 ---
 
 ## 3. Stack
@@ -61,7 +77,7 @@ Evaluar antes de empezar:
 - Tareas programadas: pg_cron de Supabase o worker con node-cron, corriendo cada pocos minutos.
 - IA: API de Claude con salida estructurada (JSON con esquema fijo, vía tool use).
 - WhatsApp: WhatsApp Cloud API (no la app común de WhatsApp Business). Evaluar "coexistencia" para usar el mismo número en app y API.
-- Email: proveedor con envío y recepción de respuestas (Resend, SendGrid o similar).
+- Email: proveedor con envío y recepción de respuestas. **Elegido el 2026-09-26: Resend** (ver las decisiones de esa fecha en §2).
 
 Si el código va dentro del CRM, **respetar el stack y las convenciones existentes del repo** por sobre lo de esta lista.
 
@@ -118,7 +134,7 @@ Contexto: Uruguay, Ley 18.331 de protección de datos personales, más las polí
 - `generarTokenResena(clienteId, presupuestoId?)`: token criptográficamente aleatorio, vencimiento configurable (default 30 días).
 - Página pública `/r/[token]`:
   - token inválido, vencido o usado → mensaje amable, sin revelar datos del cliente;
-  - opciones: "Publicar como {Nombre}" / "Publicar como anónimo";
+  - opciones, como dos botones: "Publicar como {Nombre + inicial del apellido}" / "Publicar como anónimo" (decisión del 2026-09-26, §2);
   - estrellas obligatorias, comentario opcional (con límite de caracteres).
 - `POST` de la reseña: valida el token, lo marca como usado **en la misma transacción** y guarda la reseña.
 - Listado público de reseñas aprobadas, y moderación en el panel.

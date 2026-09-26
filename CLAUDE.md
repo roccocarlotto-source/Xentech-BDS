@@ -215,6 +215,18 @@ Si una sesión futura ve el mismo 403 al pegarle a `api.github.com`
 desde el contenedor cloud, no vale la pena reinstalar `gh` ni
 reintentar ahí — ir directo a este flujo con `device_bash`.
 
+**Actualización del 2026-09-26: esto depende de la sesión, no es fijo.**
+En una sesión con el repo agregado al alcance de GitHub de la sesión
+(herramienta `add_repo`, que sí existe en algunos entornos), `git` Y
+`curl https://api.github.com/...` funcionan los dos desde el
+contenedor cloud, sin tocar la compu de Rocco: se resolvió el
+conflicto del PR #45, se pusheó y se mergeó con squash 100% desde el
+contenedor. Dos detalles de ese camino: `gh` igual no está instalado
+(usar `curl`), y la API exige `-H "Content-Type: application/json"`
+explícito en los `PUT`/`POST` (sin eso devuelve 415, no 400).
+**Criterio: probar primero `curl` a `api.github.com` desde el
+contenedor; si da 403, recién entonces el flujo con `device_bash`.**
+
 ## Si `prisma:generate`/`typecheck` falla en Actions: leer el log primero
 
 Aprendido el 2026-09-19 (PR #17), de la forma difícil: varios reruns
