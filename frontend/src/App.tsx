@@ -9,6 +9,7 @@ import { ImportClientesPage } from "./pages/ImportClientesPage";
 import { ImportPresupuestosPage } from "./pages/ImportPresupuestosPage";
 import { AdminOrganizationsPage } from "./pages/AdminOrganizationsPage";
 import { AgentConfigPage } from "./pages/AgentConfigPage";
+import { ConfigSeguimientoPage } from "./pages/ConfigSeguimientoPage";
 import { InboxPage } from "./pages/InboxPage";
 import { UsersPage } from "./pages/UsersPage";
 import { RequireAgente } from "./auth/RequireAgente";
@@ -46,6 +47,7 @@ export function App() {
           <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
           <Route element={<RequireOrgAdmin />}>
             <Route path="/agente-whatsapp" element={<AgentConfigPage />} />
+            <Route path="/seguimiento/configuracion" element={<ConfigSeguimientoPage />} />
             <Route path="/usuarios" element={<UsersPage />} />
           </Route>
           <Route element={<RequireInboxAccess />}>

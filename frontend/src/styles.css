@@ -1473,3 +1473,25 @@ body {
   justify-content: center;
   gap: 12px;
 }
+
+/* Configuración del seguimiento (etapa 8) */
+.config-horario {
+  display: flex;
+  gap: 12px;
+}
+
+.config-plantilla {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-plantilla h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}

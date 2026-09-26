@@ -184,6 +184,22 @@ deliberada para este repo, no un descuido.
   de Rocco antes de mergear, aunque el CI esté verde — el auto-merge
   cubre el trabajo de rutina, no todo sin excepción.
 
+## Chequeos locales antes de pushear (los dos proyectos)
+
+El CI corre DOS jobs y cada uno hace cinco cosas. Correr menos que esto
+deja pasar errores que aparecen recién en Actions:
+
+- Raíz (backend): `npm run typecheck`, `npm run lint`, `npm run
+format:check`, `CORS_ORIGIN=http://localhost:5173 npm test`.
+- `frontend/`: `npm run typecheck`, **`npm run lint`**, **`npm run
+format:check`**, `npm test`, `npm run build`.
+
+Los dos en negrita son los que es fácil olvidarse, porque no estaban en la
+lista de un handoff viejo que decía solo typecheck/test/build. El
+2026-09-26 eso hizo fallar el CI del frontend por una regla real (un
+`setState` adentro de un `useEffect`, que dispara renders en cascada) que
+el typecheck no ve.
+
 ## GitHub CLI (`gh`)
 
 Mismo criterio que `PlataformaCRM`: PRs con `gh pr create --body-file`

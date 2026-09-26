@@ -453,6 +453,24 @@ Explícitamente NO cubierto:
 - **La clasificación de la respuesta es la etapa 7.** Acá el mensaje entrante se guarda con `clasificacionIa` en null, y esas filas son justamente la cola de trabajo de esa etapa -- no hace falta una tabla de cola aparte.
 - **No se usa el resultado de SPF/DKIM/DMARC** que Resend calcula y devuelve. Para una baja conviene ser permisivo (mejor dar de baja de más que de menos); para la etapa 7, donde una respuesta falsificada podría mover el estado de un presupuesto, sí habría que mirarlo.
 
+### Estado de la etapa 8: panel de configuración del seguimiento (2026-09-26)
+
+`ConfigSeguimiento` existía en la base desde la etapa 2, pero **no había forma de escribirla**: el motor corría siempre con los defaults del schema de Prisma y las plantillas de los emails no se podían editar. La empresa no podía tocar nada de su propio seguimiento.
+
+- **`GET`/`PUT /api/config-seguimiento`** con `requireOrgAdmin` -- lo configura el admin de la propia organización, no el admin de plataforma (mismo criterio que `agentConfig.ts` y `whatsappConnection.ts`): los intervalos, el horario y los textos son decisiones del negocio de cada cliente. El schema de validación (`upsertConfigSeguimientoSchema`) ya existía y no cambió.
+- **Sin fila guardada, la pantalla muestra los defaults y lo dice**: "no es un formulario vacío, son los valores con los que el seguimiento ya está funcionando". Los defaults del service son los MISMOS que los del schema de Prisma, con un test que los deja a la vista en un solo lugar -- si divergen, el panel mentiría sobre lo que el motor hace.
+- **`upsert` y no `update`:** casi ninguna organización tiene fila todavía, así que la primera vez que alguien guarda, la crea.
+- **Ruta `/seguimiento/configuracion`** en el frontend, con link desde la home solo para admins de organización con el módulo habilitado.
+- Se configuran: intervalos (con la aclaración de que son offsets desde la fecha del presupuesto, no acumulados), máximo de intentos, ventana horaria (con el fin exclusive explicado), zona horaria, días de validez del link de reseña, y las plantillas de email y de WhatsApp, una por paso.
+- **La línea de baja no es editable, a propósito:** la pantalla lo dice. La agrega el motor a todos los emails para que ninguna plantilla pueda omitirla (§5).
+- Tests: 6 del service (incluido el que ancla los defaults) y 5 de la pantalla. Backend 293, frontend 50, typecheck/lint/format/build en verde.
+
+Explícitamente NO cubierto:
+
+- **Las plantillas de WhatsApp se pueden cargar pero todavía no se usan:** el envío por ese canal es la etapa 6. Se incluyeron acá porque el formato ya estaba definido en el schema y para que la etapa 6 encuentre el dato cargado.
+- **No hay vista previa de cómo queda el email** con la plantilla aplicada. Se escribe a ciegas.
+- **Cambiar los intervalos no reprograma los `Envio` ya creados:** afecta a los presupuestos nuevos. Reprogramar lo existente sería otro paso, y hay que decidir qué pasa con los pasos ya enviados.
+
 ### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
 **Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.
