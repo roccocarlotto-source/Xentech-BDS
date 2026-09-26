@@ -2,7 +2,7 @@
 
 > Documento de referencia para las sesiones de Claude Code en la nube.
 > Cada sesión arranca sin contexto: leer este archivo completo antes de tocar código.
-> Ubicación: `docs/seguimiento-resenas-diseno.md` de Base-de-datos-Xentech.
+> Ubicación: `docs/seguimiento-resenas-diseno.md` de Xentech-BDS.
 
 ---
 
@@ -344,7 +344,7 @@ Explícitamente NO cubierto en este paso (queda para pasos siguientes de la etap
 
 ### Etapa 4: soporte de `.doc` y lo que muestran los presupuestos reales (2026-09-26)
 
-Rocco subió 4 presupuestos reales a `docs/ejemplos-presupuestos/`. **Tienen datos reales de clientes**, así que el repo pasó a privado ese mismo día (ver "Visibilidad del repo" más abajo). Nunca usarlos como fixture de tests ni copiar su contenido a código, commits o PRs.
+Rocco subió 4 presupuestos reales a una carpeta `docs/ejemplos-presupuestos/` del repo. **Tenían datos reales de clientes**, así que el repo pasó a privado ese mismo día. Esa carpeta ya NO existe: se purgó del historial y los archivos viven fuera de todo repo, en la máquina de Rocco (ver "Visibilidad del repo" más abajo). Nunca volver a subirlos, ni usarlos como fixture de tests, ni copiar su contenido a código, commits o PRs.
 
 **Hecho:** la importación acepta `.doc` (Word 97-2003), que es el formato en que la empresa guarda sus presupuestos y que `mammoth` no lee. Detalle:
 
@@ -426,12 +426,22 @@ Explícitamente NO cubierto:
 - **No hay cambio de canal después de crear el presupuesto.** Si a un cliente sin email se le carga uno más tarde, la secuencia ya programada sigue siendo de WhatsApp. Reprogramar al cambiar los datos de contacto es un paso aparte, si hace falta.
 - **Un presupuesto puede quedar sin seguimiento:** cliente con solo teléfono y sin consentimiento de WhatsApp. Es deliberado (§5 no permite escribir sin consentimiento) y la pantalla lo dice.
 
-### Visibilidad del repo
+### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
-Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**
+**Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.
 
-1. Mover los ejemplos a un lugar que siga privado.
-2. Sacarlos de TODO el historial de git: el commit `5f695e9` "Add files via upload" y cualquier rama que los contenga. Borrarlos con un commit nuevo no alcanza.
+Por qué se mudó: los 4 presupuestos reales se habían subido a `docs/ejemplos-presupuestos/` y quedaron en el historial de git. Purgar el historial con `git filter-repo` y hacer force-push **no alcanzaba**, porque GitHub guarda una referencia permanente al contenido de cada pull request (`refs/pull/N/head`) que no se puede reescribir ni borrar: los PRs #45 a #50 habían salido de un `main` que ya tenía la carpeta, así que con el repo público los archivos seguían bajándose con `git fetch origin refs/pull/45/head`. Un repo nuevo era la única forma de cerrarlo de verdad.
+
+Qué se hizo, en orden:
+
+1. Los 4 archivos se copiaron a una carpeta fuera de todo repo, en la máquina de Rocco (`Proyectos/presupuestos-reales-xentech/`), con MD5 verificados. Son la única copia; se necesitan para probar la extracción cuando haya `OPENROUTER_API_KEY`.
+2. Se purgó `docs/ejemplos-presupuestos/` de todo el historial con `git filter-repo --invert-paths`. Se verificó que cada archivo de `main` conservara el mismo hash de contenido: la única diferencia es esa carpeta. Dos commits desaparecieron por quedar vacíos (el "Add files via upload" y un merge que se volvió redundante).
+3. Ese historial purgado se pusheó a `Xentech-BDS`, que arrancó vacío y por lo tanto **no tiene refs de PR viejas**. CI verde de entrada.
+4. El repo viejo quedó privado, como red de seguridad y como archivo de los PRs #1 a #50 con sus discusiones.
+
+**Lo que NO viajó y hubo que rehacer a mano:** los 6 secrets de Actions (`DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`). Tampoco viajan los PRs, los issues ni la configuración del repo.
+
+**Regla que queda:** ningún dato real de clientes entra al repo, ni siquiera en una carpeta de ejemplos "temporal". Una vez que algo entra al historial, sacarlo cuesta un repo nuevo.
 
 ## 8. Reglas para las sesiones en la nube
 
