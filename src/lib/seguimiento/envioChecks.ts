@@ -1,4 +1,4 @@
-import type { PresupuestoEstado } from "@prisma/client";
+import type { CanalSeguimiento, PresupuestoEstado } from "@prisma/client";
 
 // Etapa 5, paso 2 (§6.3, punto 2): las verificaciones que corren ANTES de
 // mandar cada `Envio` vencido. Puro (recibe todo resuelto, no toca Prisma)
@@ -9,25 +9,30 @@ import type { PresupuestoEstado } from "@prisma/client";
 // en_seguimiento); no haya baja para ese canal; exista consentimiento
 // válido para el canal; no se haya superado el máximo de intentos." Acá
 // "no haya baja" y "consentimiento válido" son la MISMA fila de
-// Consentimiento (canal EMAIL): baja = esa fila con bajaEn seteado: no hay
+// Consentimiento (la del canal del Envio): baja = esa fila con bajaEn
+// seteado, no hay
 // una fila de baja separada (comentario de Consentimiento en
 // prisma/schema.prisma -- "BAJA" no es un origen de consentimiento, es un
 // evento sobre uno ya otorgado).
 
 export const PRESUPUESTO_ABIERTO: readonly PresupuestoEstado[] = ["PENDIENTE", "EN_SEGUIMIENTO"];
 
-export interface ConsentimientoEmailVigente {
+export interface ConsentimientoVigente {
   bajaEn: Date | null;
 }
 
 export interface EvaluarPrecondicionesEnvioInput {
   presupuestoEstado: PresupuestoEstado;
-  clienteEmail: string | null;
-  // null = nunca se otorgó consentimiento de email para este presupuesto.
+  // Etapa 6: las mismas reglas valen para los dos canales, cambia el dato
+  // de contacto (email o teléfono) y cómo se nombra en los motivos.
+  canal: CanalSeguimiento;
+  // El email o el teléfono del cliente, según el canal del Envio.
+  contacto: string | null;
+  // null = nunca se otorgó consentimiento de ese canal para este cliente.
   // No debería pasar en la práctica (presupuesto.repository.ts lo crea
   // siempre, §5), pero el job no confía en eso -- lo trata como "sin
   // consentimiento válido", no como un bug que tira la corrida entera.
-  consentimiento: ConsentimientoEmailVigente | null;
+  consentimiento: ConsentimientoVigente | null;
   // Intentos de ESTA fila de Envio, ya contando el intento actual (el job
   // incrementa `intentos` al reclamar la fila, antes de llamar a esto --
   // ver envioJob.ts).
@@ -55,11 +60,14 @@ export function evaluarPrecondicionesEnvio(
     };
   }
 
-  if (!input.clienteEmail) {
+  if (!input.contacto) {
     return {
       puedeEnviar: false,
       estadoFinal: "CANCELADO",
-      motivo: "el cliente no tiene email cargado",
+      motivo:
+        input.canal === "EMAIL"
+          ? "el cliente no tiene email cargado"
+          : "el cliente no tiene teléfono cargado",
     };
   }
 
@@ -67,7 +75,7 @@ export function evaluarPrecondicionesEnvio(
     return {
       puedeEnviar: false,
       estadoFinal: "CANCELADO",
-      motivo: "no hay consentimiento de email registrado para este presupuesto",
+      motivo: `no hay consentimiento de ${etiquetaCanal(input.canal)} registrado para este cliente`,
     };
   }
 
@@ -75,7 +83,7 @@ export function evaluarPrecondicionesEnvio(
     return {
       puedeEnviar: false,
       estadoFinal: "CANCELADO",
-      motivo: "el cliente se dio de baja del seguimiento por email",
+      motivo: `el cliente se dio de baja del seguimiento por ${etiquetaCanal(input.canal)}`,
     };
   }
 
@@ -88,4 +96,8 @@ export function evaluarPrecondicionesEnvio(
   }
 
   return { puedeEnviar: true };
+}
+
+function etiquetaCanal(canal: CanalSeguimiento): string {
+  return canal === "EMAIL" ? "email" : "WhatsApp";
 }

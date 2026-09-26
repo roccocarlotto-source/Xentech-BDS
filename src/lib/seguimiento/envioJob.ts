@@ -1,4 +1,4 @@
-import type { EnvioEstado, PresupuestoEstado } from "@prisma/client";
+import type { CanalSeguimiento, EnvioEstado, PresupuestoEstado } from "@prisma/client";
 import { envioRepository, type EnvioVencido } from "../../repositories/envio.repository";
 import { presupuestoRepository } from "../../repositories/presupuesto.repository";
 import { mensajeSeguimientoRepository } from "../../repositories/mensajeSeguimiento.repository";
@@ -6,12 +6,23 @@ import {
   configSeguimientoRepository,
   type ConfigSeguimientoParaEnvio,
 } from "../../repositories/configSeguimiento.repository";
-import { getEmailProvider, type EmailProvider } from "../email/emailProvider";
+import {
+  getEmailProvider,
+  type EmailEnvioResultado,
+  type EmailProvider,
+} from "../email/emailProvider";
 import { evaluarPrecondicionesEnvio } from "./envioChecks";
 import { armarEmailSeguimiento, type PlantillaEmail } from "./envioContenido";
 import { estaDentroDeVentanaDeEnvio } from "./envioVentana";
 import { nombreDeLaPersona } from "../../utils/nombreCliente";
 import { direccionDeRespuesta } from "../email/direccionRespuesta";
+import {
+  decidirEnvioWhatsapp,
+  dentroDeVentana24h,
+  extraerPlantillaWhatsapp,
+  type QueMandarPorWhatsapp,
+} from "./envioWhatsapp";
+import { enviarPorWhatsapp } from "./enviarWhatsappSeguimiento";
 import { HORA_FIN_ENVIO_DEFAULT, MAX_INTENTOS_DEFAULT } from "./configDefaults";
 import { HORA_INICIO_ENVIO_DEFAULT, ZONA_HORARIA_DEFAULT } from "./envioScheduling";
 
@@ -44,6 +55,7 @@ export interface EnvioJobDeps {
   ) => Promise<unknown>;
   crearMensajeSaliente: (data: {
     organizationId: string;
+    canal: CanalSeguimiento;
     presupuestoId: string;
     clienteId: string;
     envioId: string;
@@ -54,6 +66,24 @@ export interface EnvioJobDeps {
   buscarConfig: (organizationId: string) => Promise<ConfigSeguimientoParaEnvio | null>;
   getEmailProvider: () => EmailProvider | null;
   replyToBase: () => string | null;
+  // Etapa 6. `puedeEnviarPorWhatsapp` es el equivalente de tener provider
+  // de email: sin la clave que desencripta los tokens no se puede mandar
+  // nada, y conviene no tocar las filas.
+  puedeEnviarPorWhatsapp: () => boolean;
+  ultimoMensajeEntranteWhatsapp: (
+    organizationId: string,
+    clienteId: string,
+  ) => Promise<Date | null>;
+  enviarPorWhatsapp: (params: {
+    organizationId: string;
+    to: string;
+    contenido: Exclude<QueMandarPorWhatsapp, { modo: "falta_plantilla" }>;
+  }) => Promise<EmailEnvioResultado>;
+  devolverSinGastarIntento: (
+    id: string,
+    organizationId: string,
+    motivo: string,
+  ) => Promise<unknown>;
 }
 
 const defaultDeps: EnvioJobDeps = {
@@ -74,6 +104,12 @@ const defaultDeps: EnvioJobDeps = {
     configSeguimientoRepository.buscarPorOrganizacion(organizationId),
   getEmailProvider,
   replyToBase: () => process.env.EMAIL_REPLY_TO ?? null,
+  puedeEnviarPorWhatsapp: () => !!process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY,
+  ultimoMensajeEntranteWhatsapp: (organizationId, clienteId) =>
+    mensajeSeguimientoRepository.ultimoEntranteWhatsapp(organizationId, clienteId),
+  enviarPorWhatsapp: (params) => enviarPorWhatsapp(params),
+  devolverSinGastarIntento: (id, organizationId, motivo) =>
+    envioRepository.devolverSinGastarIntento(id, organizationId, motivo),
 };
 
 export interface ProcesarEnviosVencidosResultado {
@@ -84,6 +120,10 @@ export interface ProcesarEnviosVencidosResultado {
   reintentados: number;
   saltadosPorHorario: number;
   saltadosPorCarrera: number;
+  // Etapa 6: el canal de esa fila todavía no se puede usar (sin proveedor
+  // de email, sin clave de WhatsApp, o sin plantilla para ese paso). No se
+  // gastó ningún intento.
+  saltadosPorCanalSinConfigurar: number;
 }
 
 function resultadoVacio(): ProcesarEnviosVencidosResultado {
@@ -95,6 +135,7 @@ function resultadoVacio(): ProcesarEnviosVencidosResultado {
     reintentados: 0,
     saltadosPorHorario: 0,
     saltadosPorCarrera: 0,
+    saltadosPorCanalSinConfigurar: 0,
   };
 }
 
@@ -157,9 +198,10 @@ export async function procesarEnviosVencidos(
   const resultado = resultadoVacio();
 
   const emailProvider = deps.getEmailProvider();
-  if (!emailProvider) {
-    // Sin proveedor de email elegido todavía (ver el comentario de
-    // getEmailProvider() en emailProvider.ts) -- ni se lee la lista de
+  const puedeWhatsapp = deps.puedeEnviarPorWhatsapp();
+  if (!emailProvider && !puedeWhatsapp) {
+    // Ningún canal configurado (sin proveedor de email y sin la clave de
+    // encriptación de los tokens de WhatsApp) -- ni se lee la lista de
     // vencidos. Importante: NO tocar ninguna fila de Envio en este caso,
     // para no gastarles `intentos` contra algo que todavía no existe.
     return resultado;
@@ -185,6 +227,15 @@ export async function procesarEnviosVencidos(
       continue; // No se reclama -- sigue PROGRAMADO, se reintenta en un tick dentro de la ventana.
     }
 
+    // El canal de ESTA fila no está configurado (p. ej. hay WhatsApp pero
+    // no proveedor de email). Se saltea SIN reclamar, igual que fuera de
+    // horario: en cuanto se configure, sale sola en el siguiente tick.
+    const canalConfigurado = envio.canal === "EMAIL" ? emailProvider !== null : puedeWhatsapp;
+    if (!canalConfigurado) {
+      resultado.saltadosPorCanalSinConfigurar += 1;
+      continue;
+    }
+
     const claim = await deps.reclamar(envio.id, envio.organizationId);
     if (!claim) {
       resultado.saltadosPorCarrera += 1; // Otra corrida del job ya se la llevó.
@@ -195,7 +246,8 @@ export async function procesarEnviosVencidos(
 
     const precondicion = evaluarPrecondicionesEnvio({
       presupuestoEstado: envio.presupuesto.estado,
-      clienteEmail: envio.presupuesto.cliente.email,
+      canal: envio.canal,
+      contacto: contactoDelCanal(envio),
       consentimiento: envio.presupuesto.consentimientos[0] ?? null,
       intentos: claim.intentos,
       maxIntentos,
@@ -214,10 +266,8 @@ export async function procesarEnviosVencidos(
       continue;
     }
 
-    // El check anterior garantiza cliente.email !== null (evaluarPrecondicionesEnvio
-    // cancela si no hay email) -- non-null assertion documentada, no repetimos la lógica acá.
-    const destinatario = envio.presupuesto.cliente.email as string;
-    const plantilla = extraerPlantillaEmail(config?.plantillas, envio.paso);
+    // El check anterior garantiza que hay dato de contacto para el canal.
+    const destinatario = contactoDelCanal(envio) as string;
     const email = armarEmailSeguimiento(
       {
         // A quién se le escribe, no cómo se identifica al cliente (§2,
@@ -227,21 +277,58 @@ export async function procesarEnviosVencidos(
         monto: envio.presupuesto.monto,
         moneda: envio.presupuesto.moneda,
       },
-      plantilla,
+      extraerPlantillaEmail(config?.plantillas, envio.paso),
     );
 
-    // Reply-To con el id del presupuesto (§6.4, ver direccionRespuesta.ts):
-    // es lo que despues permite saber de que presupuesto es una respuesta.
-    // Si EMAIL_REPLY_TO no esta configurada, se manda sin Reply-To y las
-    // respuestas van al remitente -- el webhook igual las ubica por el
-    // email del cliente, con el respaldo de respuestaEmail.service.ts.
-    const replyToBase = deps.replyToBase();
-    const envioResultado = await emailProvider.enviar({
-      to: destinatario,
-      subject: email.asunto,
-      body: email.cuerpo,
-      replyTo: replyToBase ? direccionDeRespuesta(replyToBase, envio.presupuestoId) : null,
-    });
+    let envioResultado: EmailEnvioResultado;
+
+    if (envio.canal === "EMAIL") {
+      // Reply-To con el id del presupuesto (§6.4, ver direccionRespuesta.ts):
+      // es lo que despues permite saber de que presupuesto es una respuesta.
+      // Si EMAIL_REPLY_TO no esta configurada, se manda sin Reply-To y las
+      // respuestas van al remitente -- el webhook igual las ubica por el
+      // email del cliente, con el respaldo de respuestaEmail.service.ts.
+      const replyToBase = deps.replyToBase();
+      envioResultado = await emailProvider!.enviar({
+        to: destinatario,
+        subject: email.asunto,
+        body: email.cuerpo,
+        replyTo: replyToBase ? direccionDeRespuesta(replyToBase, envio.presupuestoId) : null,
+      });
+    } else {
+      const queMandar = decidirEnvioWhatsapp({
+        ventanaAbierta: dentroDeVentana24h(
+          await deps.ultimoMensajeEntranteWhatsapp(
+            envio.organizationId,
+            envio.presupuesto.cliente.id,
+          ),
+          ahora,
+        ),
+        plantilla: extraerPlantillaWhatsapp(config?.plantillas, envio.paso),
+        texto: email.cuerpo,
+        parametros: [nombreDeLaPersona(envio.presupuesto.cliente)],
+      });
+
+      if (queMandar.modo === "falta_plantilla") {
+        // Fuera de la ventana de 24 h y sin plantilla configurada para este
+        // paso. No es un fallo del envío: falta configuración (etapa 8). Se
+        // devuelve la fila a PROGRAMADO sin gastarle un intento, así cuando
+        // el admin cargue la plantilla sale sola.
+        await deps.devolverSinGastarIntento(
+          envio.id,
+          envio.organizationId,
+          "falta configurar la plantilla de WhatsApp de este paso",
+        );
+        resultado.saltadosPorCanalSinConfigurar += 1;
+        continue;
+      }
+
+      envioResultado = await deps.enviarPorWhatsapp({
+        organizationId: envio.organizationId,
+        to: destinatario,
+        contenido: queMandar,
+      });
+    }
 
     if (envioResultado.ok) {
       await deps.marcarEnviado(envio.id, envio.organizationId, ahora);
@@ -253,6 +340,7 @@ export async function procesarEnviosVencidos(
       );
       await deps.crearMensajeSaliente({
         organizationId: envio.organizationId,
+        canal: envio.canal,
         presupuestoId: envio.presupuestoId,
         clienteId: envio.presupuesto.cliente.id,
         envioId: envio.id,
@@ -276,4 +364,11 @@ export async function procesarEnviosVencidos(
   }
 
   return resultado;
+}
+
+// El dato de contacto que corresponde al canal de ese Envio.
+function contactoDelCanal(envio: EnvioVencido): string | null {
+  return envio.canal === "EMAIL"
+    ? envio.presupuesto.cliente.email
+    : envio.presupuesto.cliente.telefono;
 }

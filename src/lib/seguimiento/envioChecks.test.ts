@@ -4,7 +4,8 @@ import { evaluarPrecondicionesEnvio } from "./envioChecks";
 
 const BASE = {
   presupuestoEstado: "PENDIENTE" as const,
-  clienteEmail: "cliente@example.com",
+  canal: "EMAIL" as const,
+  contacto: "cliente@example.com",
   consentimiento: { bajaEn: null },
   intentos: 1,
   maxIntentos: 3,
@@ -29,7 +30,7 @@ for (const estado of ["ACEPTADO", "RECHAZADO", "VENCIDO", "SIN_RESPUESTA"] as co
 }
 
 test("evaluarPrecondicionesEnvio cancela si el cliente no tiene email", () => {
-  const resultado = evaluarPrecondicionesEnvio({ ...BASE, clienteEmail: null });
+  const resultado = evaluarPrecondicionesEnvio({ ...BASE, contacto: null });
   assert.equal(resultado.puedeEnviar, false);
   assert.equal((resultado as { estadoFinal: string }).estadoFinal, "CANCELADO");
 });

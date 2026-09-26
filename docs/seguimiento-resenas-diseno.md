@@ -509,6 +509,28 @@ Explícitamente NO cubierto:
 - **No se ve la conversación completa**, solo la última respuesta con su resumen.
 - **`APP_PUBLIC_URL` no está configurada** y no lo va a estar hasta que haya dominio y despliegue.
 
+### Estado de la etapa 6: envío real por WhatsApp (2026-09-26)
+
+Los `Envio` de canal WHATSAPP se programaban desde la decisión 1 pero el job los ignoraba: quedaban en `PROGRAMADO` para siempre. Ahora salen.
+
+**La regla que ordena todo (§6.4):** Meta solo deja mandar texto libre dentro de la ventana de 24 h contada desde el último mensaje que el CLIENTE mandó. Fuera de esa ventana, solo plantillas aprobadas de antemano. Y el seguimiento es proactivo por definición, así que el caso normal es la plantilla; la ventana abierta es la excepción.
+
+- **`envioWhatsapp.ts`, puro:** `dentroDeVentana24h()` y `decidirEnvioWhatsapp()`. Un timestamp futuro (reloj desfasado) **no** abre la ventana -- ante la duda, plantilla, que es lo que Meta siempre acepta.
+- **`graphApiClient.ts`** suma `sendWhatsAppTemplateMessage`. La plantilla se referencia por nombre e idioma: el texto lo tiene Meta, no nosotros.
+- **`enviarWhatsappSeguimiento.ts`** devuelve el MISMO tipo que el provider de email (`EmailEnvioResultado`) y **nunca lanza**: así el job trata los dos canales igual y decide reintentar o marcar FALLIDO con la misma lógica.
+- **Los checks previos pasaron a ser por canal:** el dato de contacto es el email o el teléfono según el `Envio`, y el consentimiento es el de SU canal. Antes la query filtraba los consentimientos por EMAIL porque era lo único que había.
+- **Sin plantilla configurada para ese paso y fuera de la ventana, el envío se DEVUELVE sin gastarle el intento** (`devolverSinGastarIntento`). No es un fallo del proveedor: falta configuración (etapa 8). Castigarlo con un intento dejaría un presupuesto sin seguimiento por algo que el admin todavía puede arreglar; así, en cuanto carga la plantilla, sale solo en el siguiente tick.
+- **Un canal sin configurar ya no frena al otro:** antes, sin proveedor de email el job cortaba antes de leer nada. Ahora saltea las filas de ese canal, sin reclamarlas, y procesa las del otro.
+- **El `MensajeSeguimiento` saliente ahora guarda el canal real.** Estaba hardcodeado en EMAIL porque era el único que mandaba.
+- Tests: 20 nuevos. Backend 337, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto:
+
+- **Sin probar de punta a punta:** falta el trámite de Meta Business para tener credenciales reales, que es lo mismo que bloquea el paso 5 de la fase 5. El código está armado y testeado con fakes.
+- **La ventana de 24 h se calcula solo con los `MensajeSeguimiento` entrantes**, no con las conversaciones del agente de WhatsApp (`Message`/`Conversation`). Si el cliente le escribió al agente hace una hora, esto igual manda plantilla. Es el error seguro -- una plantilla siempre se acepta, solo cuesta más -- pero conviene unificarlo.
+- **Las plantillas se mandan con una sola variable** (el nombre de la persona). Si una plantilla aprobada espera más, Meta la rechaza y el envío falla.
+- **No hay recepción de respuestas por WhatsApp para el seguimiento.** El webhook existente encola los mensajes para el AGENTE (`AgentInboundJob`), no los registra como `MensajeSeguimiento` entrantes, así que ni la baja ni la clasificación de la etapa 7 los ven.
+
 ### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
 **Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.
