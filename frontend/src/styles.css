@@ -1495,3 +1495,32 @@ body {
   font-size: 14px;
   color: var(--ink-secondary);
 }
+
+/* Panel de seguimiento (etapa 7, parte 2) */
+.fila-atencion {
+  background: var(--page);
+}
+
+.seguimiento-contacto,
+.seguimiento-fecha {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.seguimiento-resumen {
+  color: var(--ink-secondary);
+  font-size: 13px;
+  max-width: 320px;
+}
+
+.seguimiento-atencion {
+  color: var(--critical);
+}
+
+.seguimiento-resultado {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  max-width: 320px;
+  word-break: break-all;
+}

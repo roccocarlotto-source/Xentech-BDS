@@ -144,6 +144,57 @@ export const presupuestoRepository = {
     });
   },
 
+  // Etapa 7, parte 2: el panel de seguimiento. Trae, por presupuesto, la
+  // ÚLTIMA respuesta entrante con su clasificación -- que es lo que una
+  // persona necesita para decidir si tiene que hacer algo -- y si ya se
+  // generó un link de reseña, para no ofrecer pedirla dos veces.
+  listarParaPanel(organizationId: string, limit: number) {
+    return prisma.presupuesto.findMany({
+      where: { organizationId, deletedAt: null },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        estado: true,
+        descripcion: true,
+        monto: true,
+        moneda: true,
+        fechaEmision: true,
+        createdAt: true,
+        cliente: {
+          select: { id: true, nombre: true, personaContacto: true, email: true, telefono: true },
+        },
+        mensajes: {
+          where: { direccion: "INBOUND" },
+          orderBy: { fecha: "desc" },
+          take: 1,
+          select: {
+            fecha: true,
+            contenido: true,
+            clasificacionIa: true,
+            resumenIa: true,
+            requiereVendedor: true,
+          },
+        },
+        _count: { select: { tokensResena: true } },
+      },
+    });
+  },
+
+  // Para el botón "Solicitar reseña": lo mínimo para validar y armar el
+  // email, scoped por organización.
+  findParaSolicitarResena(organizationId: string, id: string) {
+    return prisma.presupuesto.findFirst({
+      where: { organizationId, id, deletedAt: null },
+      select: {
+        id: true,
+        estado: true,
+        clienteId: true,
+        cliente: { select: { nombre: true, personaContacto: true, email: true } },
+      },
+    });
+  },
+
   // Etapa 5 (§6.4): resolver el presupuesto de una respuesta entrante. Sin
   // organizationId a propósito -- el único dato que trae el Reply-To es el
   // id del presupuesto (ver src/lib/email/direccionRespuesta.ts). Es seguro

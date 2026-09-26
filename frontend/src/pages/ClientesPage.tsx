@@ -105,6 +105,7 @@ export function ClientesPage() {
           )}
           {me?.agentesHabilitados?.includes("SEGUIMIENTO_RESENAS") && (
             <>
+              <Link to="/seguimiento">Seguimiento</Link>
               <Link to="/resenas">Reseñas</Link>
               <Link to="/presupuestos/importar">Importar presupuesto</Link>
             </>

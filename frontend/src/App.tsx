@@ -10,6 +10,7 @@ import { ImportPresupuestosPage } from "./pages/ImportPresupuestosPage";
 import { AdminOrganizationsPage } from "./pages/AdminOrganizationsPage";
 import { AgentConfigPage } from "./pages/AgentConfigPage";
 import { ConfigSeguimientoPage } from "./pages/ConfigSeguimientoPage";
+import { PanelSeguimientoPage } from "./pages/PanelSeguimientoPage";
 import { InboxPage } from "./pages/InboxPage";
 import { UsersPage } from "./pages/UsersPage";
 import { RequireAgente } from "./auth/RequireAgente";
@@ -55,6 +56,7 @@ export function App() {
           </Route>
           <Route element={<RequireAgente agentType="SEGUIMIENTO_RESENAS" />}>
             <Route path="/resenas" element={<ResenasPage />} />
+            <Route path="/seguimiento" element={<PanelSeguimientoPage />} />
             <Route path="/presupuestos/importar" element={<ImportPresupuestosPage />} />
           </Route>
         </Route>

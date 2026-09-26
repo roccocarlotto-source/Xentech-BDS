@@ -21,6 +21,7 @@ import { whatsappWebhookRouter } from "./routes/webhooks/whatsapp";
 import { resenasPublicRouter } from "./routes/resenasPublic";
 import { resenasRouter } from "./routes/resenas";
 import { presupuestosImportRouter } from "./routes/presupuestosImport";
+import { panelSeguimientoRouter } from "./routes/panelSeguimiento";
 import { AppError } from "./utils/AppError";
 import { parseAllowedOrigins } from "./lib/corsOrigins";
 import { getRateLimitOptions } from "./lib/rateLimitConfig";
@@ -71,6 +72,7 @@ export function createApp() {
   app.use(conversationsRouter);
   app.use(resenasRouter);
   app.use(presupuestosImportRouter);
+  app.use(panelSeguimientoRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

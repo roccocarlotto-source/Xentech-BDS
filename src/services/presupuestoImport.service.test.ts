@@ -329,11 +329,6 @@ function crearDeps(): {
         crearConConsentimientosLlamadas.push(input);
         return { id: "presu-1", ...input } as unknown as Presupuesto;
       },
-      // No los usa este flujo (etapa 4) -- los usan el job de envío y el
-      // webhook de respuestas (etapa 5). Stubs sin comportamiento, solo
-      // para satisfacer el tipo de PresupuestoRepository.
-      actualizarEstadoSiCoincide: async () => ({ count: 0 }),
-      findParaRespuestaEntrante: async () => null,
     },
     ahora: () => AHORA,
   };

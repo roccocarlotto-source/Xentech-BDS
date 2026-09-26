@@ -305,7 +305,10 @@ type Asincrono<T> = {
 export interface PresupuestoCommitDeps {
   clienteRepo: Asincrono<Pick<typeof clienteRepository, "findById" | "create">>;
   userRepo: Asincrono<Pick<typeof userRepository, "findById">>;
-  presupuestoRepo: Asincrono<PresupuestoRepository>;
+  // Solo los métodos que este flujo usa, no el repositorio entero: si no,
+  // cada método nuevo del repo obliga a stubearlo acá y en los tests, sin
+  // que tenga nada que ver con la importación.
+  presupuestoRepo: Asincrono<Pick<PresupuestoRepository, "crearConConsentimientos">>;
   ahora: () => Date;
 }
 
