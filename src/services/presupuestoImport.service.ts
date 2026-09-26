@@ -49,7 +49,16 @@ const EXTRACCION_TOOL: LlmToolDefinition = {
   parameters: {
     type: "object",
     properties: {
-      cliente_nombre: { type: ["string", "null"], description: "Nombre del cliente" },
+      cliente_empresa: {
+        type: ["string", "null"],
+        description:
+          "Nombre de la EMPRESA a la que se le presupuesta (línea 'EMPRESA:'). null si el presupuesto es a nombre de una persona y no de una empresa.",
+      },
+      cliente_persona: {
+        type: ["string", "null"],
+        description:
+          "Nombre de la PERSONA de contacto, sin el tratamiento ('Sr.', 'Sra.', 'Arq.'): de 'Sra. Laura Martínez' va 'Laura Martínez'. null si el presupuesto no nombra a ninguna persona.",
+      },
       telefono: { type: ["string", "null"], description: "Teléfono de contacto del cliente" },
       email: { type: ["string", "null"], description: "Email de contacto del cliente" },
       // "items", no "vehiculo_o_items" -- ver el comentario en
@@ -83,7 +92,8 @@ const EXTRACCION_TOOL: LlmToolDefinition = {
       },
     },
     required: [
-      "cliente_nombre",
+      "cliente_empresa",
+      "cliente_persona",
       "telefono",
       "email",
       "items",
@@ -101,11 +111,13 @@ const SYSTEM_PROMPT = `Extraés datos de presupuestos comerciales (empresa de ca
 
 Reglas:
 - Usá SOLO lo que está escrito en el texto. Si un dato no aparece o no estás seguro, poné null -- nunca inventes ni completes con un valor plausible.
-- Llamá a la tool ${EXTRACCION_TOOL_NAME} exactamente una vez, con los 9 campos.
+- Llamá a la tool ${EXTRACCION_TOOL_NAME} exactamente una vez, con los 10 campos.
 - El monto va como número, sin símbolo de moneda ni separadores de miles.
 - La fecha de emisión, si aparece, va como YYYY-MM-DD.
 
 Formato habitual de estos presupuestos (líneas "ETIQUETA: valor"), para ubicar cada dato -- si el texto no lo trae, igual va null:
+- La empresa va en la línea "EMPRESA:" y la persona de contacto en la línea siguiente, a veces con el celular pegado ("Sra. Laura Martínez - 099 123 456"): separalos, cliente_persona lleva solo el nombre y el celular va en telefono.
+- Si no hay línea "EMPRESA:", cliente_empresa va null y la persona igual se extrae.
 - "MANTENIMIENTO DE LA OFERTA: N días" es la validez.
 - "$" solo es UYU; "U$S" o "USD" es USD.
 - Si hay varias opciones alternativas ("OPCION 1", "OPCION 2") con importes distintos, no hay un monto total único: monto va null y las opciones se describen en items.
@@ -210,7 +222,8 @@ export async function extraerTextoDocumento(
 
 function parseArgumentosExtraidos(argumentos: Record<string, unknown>): DatosExtraidosPresupuesto {
   const entrada = {
-    clienteNombre: argumentos.cliente_nombre ?? null,
+    clienteEmpresa: argumentos.cliente_empresa ?? null,
+    clientePersona: argumentos.cliente_persona ?? null,
     telefono: argumentos.telefono ?? null,
     email: argumentos.email ?? null,
     items: argumentos.items ?? null,
@@ -355,6 +368,7 @@ async function resolverCliente(
 
   const nuevo = await deps.clienteRepo.create(organizationId, {
     nombre: input.cliente.nombre,
+    personaContacto: input.cliente.personaContacto ?? null,
     telefono: input.cliente.telefono ?? null,
     email: input.cliente.email ?? null,
   });

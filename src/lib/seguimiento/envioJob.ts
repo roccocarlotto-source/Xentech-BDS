@@ -10,6 +10,7 @@ import { getEmailProvider, type EmailProvider } from "../email/emailProvider";
 import { evaluarPrecondicionesEnvio } from "./envioChecks";
 import { armarEmailSeguimiento, type PlantillaEmail } from "./envioContenido";
 import { estaDentroDeVentanaDeEnvio } from "./envioVentana";
+import { nombreDeLaPersona } from "../../utils/nombreCliente";
 import { HORA_FIN_ENVIO_DEFAULT, MAX_INTENTOS_DEFAULT } from "./configDefaults";
 import { HORA_INICIO_ENVIO_DEFAULT, ZONA_HORARIA_DEFAULT } from "./envioScheduling";
 
@@ -216,7 +217,10 @@ export async function procesarEnviosVencidos(
     const plantilla = extraerPlantillaEmail(config?.plantillas, envio.paso);
     const email = armarEmailSeguimiento(
       {
-        clienteNombre: envio.presupuesto.cliente.nombre,
+        // A quién se le escribe, no cómo se identifica al cliente (§2,
+        // decisión 4 del 2026-09-26): con empresa y persona separadas, el
+        // saludo tiene que llevar la persona.
+        clienteNombre: nombreDeLaPersona(envio.presupuesto.cliente),
         monto: envio.presupuesto.monto,
         moneda: envio.presupuesto.moneda,
       },

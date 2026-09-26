@@ -392,6 +392,23 @@ Dos cosas a tener en cuenta:
 - **No hay backfill.** Las reseñas ya publicadas conservan el `nombreVisible` con el que se guardaron. Hoy no importa (no hay ninguna: nada está desplegado), pero si aparece alguna antes de desplegar, hay que abreviarla a mano.
 - **Con el cliente cargado como empresa, la abreviación queda rara** ("Panadería La Espiga" → "Panadería E."). Se resuelve solo cuando entre la decisión 4 (empresa y persona de contacto en campos separados): la reseña tiene que usar el nombre de la PERSONA, no el de la empresa. Anotado ahí.
 
+### Estado de la etapa 4: empresa y persona de contacto separadas (2026-09-26)
+
+Implementa la decisión 4 del 2026-09-26 (§2). Toca el modelo, la extracción y las dos pantallas donde se carga un cliente.
+
+- **`Cliente.personaContacto`** (nullable, `VarChar(200)`): a quién se le escribe. `Cliente.nombre` pasa a ser "cómo se identifica al cliente" -- la empresa cuando la hay, la persona suelta cuando no. **Columna nueva: falta que Rocco corra `db-migrate.yml`** (ver las reglas de más abajo). No hay tabla nueva, así que `prisma/sql/rls_policies.sql` no cambia.
+- **Extracción:** `cliente_nombre` se parte en `cliente_empresa` y `cliente_persona` (10 campos, antes 9). El prompt ahora dice que la empresa está en `EMPRESA:` y la persona en la línea siguiente, que el tratamiento ("Sra.", "Arq.") no va en el nombre, y que si la línea trae el celular pegado va separado a `telefono`.
+- **`nombreDeLaPersona()`** (`src/utils/nombreCliente.ts`): `personaContacto` con respaldo en `nombre`. Una sola función en vez de repetir el `??` en cada lugar y que alguno se olvide. La usan el saludo del email de seguimiento y el nombre de la reseña -- los dos le hablan a una persona, no a una empresa. Esto también arregla lo que quedó anotado en el estado de la etapa 3: la reseña ya no abrevia el nombre de la empresa.
+- **Pantalla de revisión de la importación:** dos campos separados. Si el presupuesto no trae empresa (1 de los 4 ejemplos reales), la persona pasa a ser el nombre del cliente y el campo de contacto queda vacío, para no dejar el mismo nombre duplicado en los dos.
+- **Alta manual de clientes** (`ClienteForm`) y **mapeo de columnas de la importación de clientes desde Excel**: los dos aceptan el campo nuevo.
+- Tests: `nombreCliente.test.ts` nuevo, más los de extracción, reseñas, job de envío y las dos pantallas actualizados. Backend 239 tests, frontend 44, typecheck/lint/format/build en verde.
+
+Explícitamente NO cubierto:
+
+- **La revisión todavía no exige "al menos email o teléfono"** (decisión 1): es del paso del canal, no de este.
+- **Sin backfill:** los clientes ya cargados quedan con `personaContacto` en null, y el respaldo a `nombre` los cubre. Hoy no hay ninguno en la base real de todas formas.
+- **No se probó la extracción contra los 4 presupuestos reales:** sigue faltando `OPENROUTER_API_KEY`. El prompt nuevo se escribió a partir de lo que ya está descrito en este documento, no de una corrida real.
+
 ### Visibilidad del repo
 
 Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**

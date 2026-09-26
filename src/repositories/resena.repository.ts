@@ -18,7 +18,7 @@ export const resenaRepository = {
         clienteId: true,
         venceEn: true,
         usadoEn: true,
-        cliente: { select: { nombre: true, deletedAt: true } },
+        cliente: { select: { nombre: true, personaContacto: true, deletedAt: true } },
       },
     });
   },

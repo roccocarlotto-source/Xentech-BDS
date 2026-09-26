@@ -5,6 +5,7 @@ import { abreviarNombreVisible } from "../lib/resenas/nombreVisible";
 import { generarTokenPlano, hashToken, tieneFormatoDeToken } from "../lib/resenas/token";
 import type { PublicarResenaInput } from "../schemas/resena.schema";
 import { AppError } from "../utils/AppError";
+import { nombreDeLaPersona } from "../utils/nombreCliente";
 
 // Etapa 3 de docs/seguimiento-resenas-diseno.md: reseñas por link
 // personalizado (§6.1). Las dependencias se inyectan (mismo patrón que el
@@ -157,7 +158,7 @@ export async function obtenerFormularioPublico(
   // usa publicarResena().
   return {
     organizacion: organizacion.name,
-    nombreCliente: abreviarNombreVisible(fila.cliente.nombre),
+    nombreCliente: abreviarNombreVisible(nombreDeLaPersona(fila.cliente)),
   };
 }
 
@@ -175,7 +176,7 @@ export async function publicarResena(
     anonimo: input.anonimo,
     // Copia del nombre al momento de publicar (ver el modelo Resena), y
     // abreviado: nombre + inicial del apellido, nunca el nombre completo.
-    nombreVisible: input.anonimo ? null : abreviarNombreVisible(fila.cliente.nombre),
+    nombreVisible: input.anonimo ? null : abreviarNombreVisible(nombreDeLaPersona(fila.cliente)),
     estrellas: input.estrellas,
     comentario: input.comentario,
   });

@@ -32,7 +32,8 @@ const previewResponse = {
   archivoNombre: "presupuesto-0458.docx",
   textoExtraido: "texto de prueba",
   datos: {
-    clienteNombre: "Panadería La Espiga",
+    clienteEmpresa: "Panadería La Espiga",
+    clientePersona: "Rosana Fernández",
     telefono: "099 345 678",
     email: "rosana@laespiga.com.uy",
     items: "Cartel luminoso frontal 3x1m",
@@ -103,13 +104,42 @@ describe("ImportPresupuestosPage", () => {
     renderPage();
     await subirArchivo();
 
-    expect(await screen.findByLabelText("Nombre *")).toHaveValue("Panadería La Espiga");
+    expect(await screen.findByLabelText("Nombre del cliente (empresa) *")).toHaveValue(
+      "Panadería La Espiga",
+    );
+    // Empresa y persona quedan en campos distintos (§2, decisión 4).
+    expect(screen.getByLabelText(/Persona de contacto/)).toHaveValue("Rosana Fernández");
     expect(screen.getByLabelText("Teléfono")).toHaveValue("099 345 678");
     expect(screen.getByLabelText("Detalle (lo presupuestado)")).toHaveValue(
       "Cartel luminoso frontal 3x1m",
     );
     expect(screen.getByLabelText("Monto")).toHaveValue(45000);
     expect(screen.getByText(/Vendedor \(según el texto\): Martín Sosa/)).toBeInTheDocument();
+  });
+
+  test("sin empresa en el presupuesto, la persona pasa a ser el nombre del cliente", async () => {
+    // 1 de los 4 presupuestos reales no trae "EMPRESA:". En ese caso el
+    // nombre del cliente ES la persona, y el campo de contacto queda vacío:
+    // si no, quedaría el mismo nombre duplicado en los dos campos.
+    fetchMock.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/presupuestos/import/preview")) {
+        return jsonResponse({
+          ...previewResponse,
+          datos: { ...previewResponse.datos, clienteEmpresa: null },
+        });
+      }
+      if (url.endsWith("/clientes")) return jsonResponse(clientes);
+      throw new Error(`fetch inesperado: ${url}`);
+    });
+
+    renderPage();
+    await subirArchivo();
+
+    expect(await screen.findByLabelText("Nombre del cliente (empresa) *")).toHaveValue(
+      "Rosana Fernández",
+    );
+    expect(screen.getByLabelText(/Persona de contacto/)).toHaveValue("");
   });
 
   test("sugiere un cliente existente cuando el teléfono matchea", async () => {
@@ -125,7 +155,7 @@ describe("ImportPresupuestosPage", () => {
   test("el botón de guardar exige elegir sí/no de seguimiento por WhatsApp", async () => {
     renderPage();
     await subirArchivo();
-    await screen.findByLabelText("Nombre *");
+    await screen.findByLabelText("Nombre del cliente (empresa) *");
 
     const guardar = screen.getByRole("button", { name: "Guardar presupuesto" });
     expect(guardar).toBeDisabled();
@@ -137,7 +167,7 @@ describe("ImportPresupuestosPage", () => {
   test("si elige seguimiento por WhatsApp, exige el origen del consentimiento", async () => {
     renderPage();
     await subirArchivo();
-    await screen.findByLabelText("Nombre *");
+    await screen.findByLabelText("Nombre del cliente (empresa) *");
 
     const guardar = screen.getByRole("button", { name: "Guardar presupuesto" });
     await userEvent.click(
@@ -154,7 +184,7 @@ describe("ImportPresupuestosPage", () => {
   test("confirma la importación y manda el payload esperado a /commit", async () => {
     renderPage();
     await subirArchivo();
-    await screen.findByLabelText("Nombre *");
+    await screen.findByLabelText("Nombre del cliente (empresa) *");
 
     await userEvent.click(screen.getByRole("radio", { name: "No, solo por email" }));
     await userEvent.click(screen.getByRole("button", { name: "Guardar presupuesto" }));
@@ -169,7 +199,11 @@ describe("ImportPresupuestosPage", () => {
     const body = JSON.parse(requestInit.body as string);
     expect(body).toMatchObject({
       archivoNombre: "presupuesto-0458.docx",
-      cliente: { modo: "nuevo", nombre: "Panadería La Espiga" },
+      cliente: {
+        modo: "nuevo",
+        nombre: "Panadería La Espiga",
+        personaContacto: "Rosana Fernández",
+      },
       seguimientoWhatsapp: false,
       consentimientoWhatsappOrigen: null,
       monto: 45000,

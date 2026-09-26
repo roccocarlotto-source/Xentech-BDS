@@ -13,7 +13,13 @@ import { z } from "zod";
 // solo un rename cosmético: cambia qué le pedimos al modelo que busque en
 // el texto).
 export const datosExtraidosPresupuestoSchema = z.object({
-  clienteNombre: z.string().trim().min(1).nullable(),
+  // Empresa y persona de contacto por separado (§2, decisión 4 del
+  // 2026-09-26): la empresa identifica al cliente, la persona es a quién se
+  // le escribe. Los dos pueden venir null -- el presupuesto que no trae
+  // empresa existe (1 de los 4 ejemplos reales), y la pantalla de revisión
+  // exige que al menos uno quede cargado.
+  clienteEmpresa: z.string().trim().min(1).nullable(),
+  clientePersona: z.string().trim().min(1).nullable(),
   telefono: z.string().trim().min(1).nullable(),
   email: z.string().trim().min(1).nullable(),
   items: z.string().trim().min(1).nullable(),
@@ -55,6 +61,7 @@ export const clienteSeleccionSchema = z.discriminatedUnion("modo", [
   z.object({
     modo: z.literal("nuevo"),
     nombre: z.string().trim().min(1).max(200),
+    personaContacto: z.string().trim().max(200).nullish(),
     telefono: z.string().trim().max(30).nullish(),
     email: z.string().trim().email().max(255).nullish(),
   }),

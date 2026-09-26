@@ -7,6 +7,7 @@ import type { Cliente } from "../types/cliente";
 // editar/borrar, pegarle directo a la API).
 export interface ClienteFormInput {
   nombre: string;
+  personaContacto?: string;
   telefono?: string;
   email?: string;
   notas?: string;
@@ -29,6 +30,7 @@ interface ClienteFormProps {
 // se suma otra periodicidad, acá hay que agregar un <select>.
 export function ClienteForm({ cliente, onSubmit, onCancel, submitting }: ClienteFormProps) {
   const [nombre, setNombre] = useState(cliente?.nombre ?? "");
+  const [personaContacto, setPersonaContacto] = useState(cliente?.personaContacto ?? "");
   const [telefono, setTelefono] = useState(cliente?.telefono ?? "");
   const [email, setEmail] = useState(cliente?.email ?? "");
   const [notas, setNotas] = useState(cliente?.notas ?? "");
@@ -51,6 +53,7 @@ export function ClienteForm({ cliente, onSubmit, onCancel, submitting }: Cliente
 
     await onSubmit({
       nombre: nombre.trim(),
+      personaContacto: personaContacto.trim() || undefined,
       telefono: telefono.trim() || undefined,
       email: email.trim() || undefined,
       notas: notas.trim() || undefined,
@@ -66,6 +69,14 @@ export function ClienteForm({ cliente, onSubmit, onCancel, submitting }: Cliente
         <label>
           Nombre
           <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        </label>
+        <label>
+          Persona de contacto
+          <input
+            type="text"
+            value={personaContacto}
+            onChange={(e) => setPersonaContacto(e.target.value)}
+          />
         </label>
         <label>
           Teléfono

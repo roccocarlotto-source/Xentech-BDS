@@ -17,6 +17,7 @@ import { clienteRepository } from "../repositories/cliente.repository";
 
 export const CLIENTE_IMPORT_FIELDS = [
   "nombre",
+  "personaContacto",
   "telefono",
   "email",
   "notas",
@@ -60,6 +61,7 @@ const MAX_ROWS = 5000; // Límite razonable para un MVP: evita cargas gigantes p
 // esto es solo para ahorrarle el mapeo manual en el caso común.
 const FIELD_SYNONYMS: Record<ClienteImportField, string[]> = {
   nombre: ["nombre", "cliente", "nombre y apellido", "razon social", "nombre completo"],
+  personaContacto: ["persona de contacto", "contacto", "persona", "referente", "encargado"],
   telefono: ["telefono", "tel", "celular", "whatsapp", "phone", "numero"],
   email: ["email", "correo", "correo electronico", "mail", "e-mail"],
   notas: ["notas", "nota", "observaciones", "comentarios", "detalle"],

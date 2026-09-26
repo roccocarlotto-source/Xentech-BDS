@@ -105,7 +105,8 @@ test("extraerTextoDocumento rechaza extensiones que no son de Word", async () =>
 
 test("extraerDatosPresupuesto mapea los argumentos de la tool a DatosExtraidosPresupuesto", async () => {
   const llm = llmQueDevuelve({
-    cliente_nombre: "Panadería La Espiga",
+    cliente_empresa: "Panadería La Espiga",
+    cliente_persona: "Rosana Fernández",
     telefono: "099 345 678",
     email: "rosana.fernandez@laespiga.com.uy",
     items: "Cartel luminoso frontal 3x1m + 2 banners de vidriera",
@@ -123,7 +124,8 @@ test("extraerDatosPresupuesto mapea los argumentos de la tool a DatosExtraidosPr
   });
 
   assert.deepEqual(datos, {
-    clienteNombre: "Panadería La Espiga",
+    clienteEmpresa: "Panadería La Espiga",
+    clientePersona: "Rosana Fernández",
     telefono: "099 345 678",
     email: "rosana.fernandez@laespiga.com.uy",
     items: "Cartel luminoso frontal 3x1m + 2 banners de vidriera",
@@ -137,7 +139,8 @@ test("extraerDatosPresupuesto mapea los argumentos de la tool a DatosExtraidosPr
 
 test("extraerDatosPresupuesto conserva null en los campos que la IA no encontró", async () => {
   const llm = llmQueDevuelve({
-    cliente_nombre: "Panadería La Espiga",
+    cliente_empresa: "Panadería La Espiga",
+    cliente_persona: "Rosana Fernández",
     telefono: null,
     email: null,
     items: "Cartel luminoso",
@@ -156,7 +159,8 @@ test("extraerDatosPresupuesto conserva null en los campos que la IA no encontró
 
   assert.equal(datos.telefono, null);
   assert.equal(datos.monto, null);
-  assert.equal(datos.clienteNombre, "Panadería La Espiga");
+  assert.equal(datos.clienteEmpresa, "Panadería La Espiga");
+  assert.equal(datos.clientePersona, "Rosana Fernández");
 });
 
 test("extraerDatosPresupuesto tira AppError 502 si la IA no llama la tool", async () => {
@@ -174,7 +178,8 @@ test("extraerDatosPresupuesto tira AppError 502 si la IA no llama la tool", asyn
 
 test("extraerDatosPresupuesto tira AppError 502 si los argumentos no matchean el schema", async () => {
   const llm = llmQueDevuelve({
-    cliente_nombre: "Panadería La Espiga",
+    cliente_empresa: "Panadería La Espiga",
+    cliente_persona: "Rosana Fernández",
     telefono: null,
     email: null,
     items: null,
@@ -211,7 +216,8 @@ test("previewImportPresupuesto rechaza archivos que no son de Word", async () =>
 
 test("previewImportPresupuesto encadena extracción de texto + IA sobre el fixture real", async () => {
   const llm = llmQueDevuelve({
-    cliente_nombre: "Panadería La Espiga",
+    cliente_empresa: "Panadería La Espiga",
+    cliente_persona: "Rosana Fernández",
     telefono: "099 345 678",
     email: "rosana.fernandez@laespiga.com.uy",
     items: "Cartel luminoso frontal 3x1m + 2 banners de vidriera",
@@ -231,7 +237,8 @@ test("previewImportPresupuesto encadena extracción de texto + IA sobre el fixtu
 
   assert.equal(resultado.archivoNombre, "presupuesto-0458.docx");
   assert.match(resultado.textoExtraido, /Panadería La Espiga/);
-  assert.equal(resultado.datos.clienteNombre, "Panadería La Espiga");
+  assert.equal(resultado.datos.clienteEmpresa, "Panadería La Espiga");
+  assert.equal(resultado.datos.clientePersona, "Rosana Fernández");
   assert.equal(resultado.datos.monto, 45000);
 });
 

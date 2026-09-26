@@ -11,6 +11,7 @@ export interface Cliente {
   id: string;
   organizationId: string;
   nombre: string;
+  personaContacto: string | null;
   telefono: string | null;
   email: string | null;
   notas: string | null;

@@ -2,7 +2,10 @@
 // docs/seguimiento-resenas-diseno.md).
 
 export interface DatosExtraidosPresupuesto {
-  clienteNombre: string | null;
+  // Empresa y persona de contacto por separado (§2, decisión 4 del
+  // 2026-09-26): los dos pueden venir null.
+  clienteEmpresa: string | null;
+  clientePersona: string | null;
   telefono: string | null;
   email: string | null;
   items: string | null;
@@ -21,7 +24,13 @@ export interface PreviewImportPresupuestoResult {
 
 export type ClienteSeleccion =
   | { modo: "existente"; clienteId: string }
-  | { modo: "nuevo"; nombre: string; telefono?: string | null; email?: string | null };
+  | {
+      modo: "nuevo";
+      nombre: string;
+      personaContacto?: string | null;
+      telefono?: string | null;
+      email?: string | null;
+    };
 
 export type ConsentimientoWhatsappOrigen = "WHATSAPP_ENTRANTE" | "VERBAL_VENDEDOR";
 

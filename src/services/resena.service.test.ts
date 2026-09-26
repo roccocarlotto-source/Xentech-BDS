@@ -53,8 +53,20 @@ function crearEntorno(opts: { diasConfig?: number | null; moduloOn?: boolean } =
     { id: OTRA_ORG, name: "Otra", slug: "otra", deletedAt: null as Date | null },
   ];
   const clientes = [
-    { id: "cli-1", organizationId: ORG, nombre: "Ana Pérez", deletedAt: null as Date | null },
-    { id: "cli-2", organizationId: OTRA_ORG, nombre: "Beto", deletedAt: null as Date | null },
+    {
+      id: "cli-1",
+      organizationId: ORG,
+      nombre: "Panadería La Espiga",
+      personaContacto: "Ana Pérez",
+      deletedAt: null as Date | null,
+    },
+    {
+      id: "cli-2",
+      organizationId: OTRA_ORG,
+      nombre: "Beto",
+      personaContacto: null,
+      deletedAt: null as Date | null,
+    },
   ];
   const presupuestos = [
     { id: "pre-1", organizationId: ORG, clienteId: "cli-1", deletedAt: null },
@@ -71,7 +83,14 @@ function crearEntorno(opts: { diasConfig?: number | null; moduloOn?: boolean } =
       const t = tokens.find((x) => x.tokenHash === tokenHash);
       if (!t) return null;
       const c = clientes.find((x) => x.id === t.clienteId)!;
-      return { ...t, cliente: { nombre: c.nombre, deletedAt: c.deletedAt } };
+      return {
+        ...t,
+        cliente: {
+          nombre: c.nombre,
+          personaContacto: c.personaContacto,
+          deletedAt: c.deletedAt,
+        },
+      };
     },
     async findOrganizacion(id) {
       const o = orgs.find((x) => x.id === id && !x.deletedAt);

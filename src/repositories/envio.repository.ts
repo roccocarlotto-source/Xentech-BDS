@@ -14,7 +14,7 @@ export interface EnvioVencido {
     estado: PresupuestoEstado;
     monto: number | null;
     moneda: string | null;
-    cliente: { id: string; nombre: string; email: string | null };
+    cliente: { id: string; nombre: string; personaContacto: string | null; email: string | null };
     // Filtrado por canal EMAIL en la query de más abajo -- a lo sumo una
     // fila (presupuesto.repository.ts crea una sola por presupuesto).
     consentimientos: Array<{ bajaEn: Date | null }>;
@@ -41,7 +41,7 @@ export const envioRepository = {
             estado: true,
             monto: true,
             moneda: true,
-            cliente: { select: { id: true, nombre: true, email: true } },
+            cliente: { select: { id: true, nombre: true, personaContacto: true, email: true } },
             consentimientos: { where: { canal: "EMAIL" }, select: { bajaEn: true } },
           },
         },

@@ -42,6 +42,7 @@ const clienteExistente: Cliente = {
   id: "cliente-1",
   organizationId: "org-1",
   nombre: "Ana Pérez",
+  personaContacto: null,
   telefono: "+59899123456",
   email: "ana@example.com",
   notas: null,

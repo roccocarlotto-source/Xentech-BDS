@@ -33,7 +33,12 @@ function envioDePrueba(overrides: Partial<EnvioVencido> = {}): EnvioVencido {
       estado: "PENDIENTE",
       monto: null,
       moneda: null,
-      cliente: { id: "cli-1", nombre: "Panadería La Espiga", email: "cliente@example.com" },
+      cliente: {
+        id: "cli-1",
+        nombre: "Panadería La Espiga",
+        personaContacto: "Rosana Fernández",
+        email: "cliente@example.com",
+      },
       consentimientos: [{ bajaEn: null }],
     },
     ...overrides,
@@ -190,7 +195,7 @@ test("procesarEnviosVencidos cancela (sin reintentar) si el cliente no tiene ema
       envioDePrueba({
         presupuesto: {
           ...envioDePrueba().presupuesto,
-          cliente: { id: "cli-1", nombre: "Sin email", email: null },
+          cliente: { id: "cli-1", nombre: "Sin email", personaContacto: null, email: null },
         },
       }),
     ],

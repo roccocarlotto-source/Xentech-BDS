@@ -2,6 +2,7 @@
 
 export const CLIENTE_IMPORT_FIELDS = [
   "nombre",
+  "personaContacto",
   "telefono",
   "email",
   "notas",
@@ -14,6 +15,7 @@ export type ClienteImportField = (typeof CLIENTE_IMPORT_FIELDS)[number];
 
 export const CLIENTE_IMPORT_FIELD_LABELS: Record<ClienteImportField, string> = {
   nombre: "Nombre",
+  personaContacto: "Persona de contacto",
   telefono: "Teléfono",
   email: "Correo electrónico",
   notas: "Notas",

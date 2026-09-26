@@ -59,6 +59,7 @@ export function ImportPresupuestosPage() {
   const [modoCliente, setModoCliente] = useState<ModoCliente>("nuevo");
   const [clienteId, setClienteId] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
+  const [personaNueva, setPersonaNueva] = useState("");
   const [telefonoNuevo, setTelefonoNuevo] = useState("");
   const [emailNuevo, setEmailNuevo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -88,7 +89,12 @@ export function ImportPresupuestosPage() {
       setClienteId(match.id);
     } else {
       setModoCliente("nuevo");
-      setNombreNuevo(datos.clienteNombre ?? "");
+      // El cliente se identifica por la empresa cuando la hay; si el
+      // presupuesto no trae empresa (pasa: 1 de los 4 ejemplos reales), la
+      // persona pasa a ser el nombre del cliente y el campo de contacto
+      // queda vacío -- si no, quedaría el mismo nombre duplicado en los dos.
+      setNombreNuevo(datos.clienteEmpresa ?? datos.clientePersona ?? "");
+      setPersonaNueva(datos.clienteEmpresa ? (datos.clientePersona ?? "") : "");
       setTelefonoNuevo(datos.telefono ?? "");
       setEmailNuevo(datos.email ?? "");
     }
@@ -107,6 +113,7 @@ export function ImportPresupuestosPage() {
     setModoCliente("nuevo");
     setClienteId("");
     setNombreNuevo("");
+    setPersonaNueva("");
     setTelefonoNuevo("");
     setEmailNuevo("");
     setDescripcion("");
@@ -174,6 +181,7 @@ export function ImportPresupuestosPage() {
         : {
             modo: "nuevo",
             nombre: nombreNuevo.trim(),
+            personaContacto: personaNueva.trim() || null,
             telefono: telefonoNuevo.trim() || null,
             email: emailNuevo.trim() || null,
           };
@@ -280,8 +288,16 @@ export function ImportPresupuestosPage() {
             ) : (
               <>
                 <label className="agent-config-field">
-                  Nombre *
+                  Nombre del cliente (empresa) *
                   <input value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} />
+                </label>
+                <label className="agent-config-field">
+                  Persona de contacto
+                  <input value={personaNueva} onChange={(e) => setPersonaNueva(e.target.value)} />
+                  <span className="agent-config-hint">
+                    A quién se le escribe. Si el cliente es una persona suelta, alcanza con el
+                    nombre de arriba.
+                  </span>
                 </label>
                 <label className="agent-config-field">
                   Teléfono

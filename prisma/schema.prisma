@@ -117,7 +117,15 @@ model PlatformAdmin {
 model Cliente {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId    String             @map("organization_id") @db.Uuid
+  // "nombre" es cómo se identifica al cliente: la EMPRESA cuando la hay
+  // (campo "EMPRESA:" de los presupuestos), si no la persona suelta.
   nombre            String             @db.VarChar(200)
+  // La persona con la que se habla ("Sra. …" en los presupuestos), separada
+  // del nombre del cliente por decisión de Rocco del 2026-09-26 (§2,
+  // decisión 4 de docs/seguimiento-resenas-diseno.md): identificar al
+  // cliente y saber a quién escribirle son dos cosas distintas. Nullable:
+  // con un cliente que es una persona suelta, ya está en "nombre".
+  personaContacto   String?            @map("persona_contacto") @db.VarChar(200)
   telefono          String?            @db.VarChar(30)
   email             String?            @db.VarChar(255)
   notas             String?            @db.Text
