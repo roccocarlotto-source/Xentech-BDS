@@ -45,7 +45,32 @@ jobs:
           done
           exit 1
 
+      # Chequeo explicito antes de correr nada: un secret vacio (o cargado
+      # como "variable" en vez de secret, o con otro nombre) hace que prisma
+      # falle con un P1012 sobre la datasource, un error que no dice la causa
+      # real. Paso el 2026-09-26 al estrenar el repo nuevo.
+      - name: Verificar que los secrets de la base estan cargados
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          faltan=""
+          [ -n "$DATABASE_URL" ] || faltan="$faltan DATABASE_URL"
+          [ -n "$DIRECT_URL" ] || faltan="$faltan DIRECT_URL"
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan secrets (vacios o sin cargar):$faltan -- cargarlos en Settings > Secrets and variables > Actions, pestaña Secrets."
+            exit 1
+          fi
+
+      # `shell: bash` NO es cosmetico: el shell por defecto de Actions es
+      # `bash -e`, SIN pipefail, asi que en `prisma db push | tee` el codigo
+      # de salida es el de `tee` -- siempre 0. Con eso, un db push que
+      # revienta daba el job en VERDE y la base quedaba sin migrar sin que
+      # nadie se enterara (pasó el 2026-09-26). `shell: bash` corre
+      # `bash -eo pipefail`, que propaga el error de prisma.
       - name: prisma db push
+        shell: bash
         run: npx prisma db push 2>&1 | tee /tmp/db-push.log
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
