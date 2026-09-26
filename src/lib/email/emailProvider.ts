@@ -18,6 +18,11 @@ export interface EmailAEnviar {
   to: string;
   subject: string;
   body: string;
+  // Reply-To de ESTE envío, con el id del presupuesto adentro (§6.4, ver
+  // direccionRespuesta.ts). `null` = sin Reply-To, las respuestas van al
+  // remitente. Es por email y no una config del provider porque cambia en
+  // cada envío.
+  replyTo?: string | null;
 }
 
 export type EmailEnvioResultado =

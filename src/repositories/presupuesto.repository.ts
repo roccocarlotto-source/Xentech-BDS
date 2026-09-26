@@ -144,6 +144,25 @@ export const presupuestoRepository = {
     });
   },
 
+  // Etapa 5 (§6.4): resolver el presupuesto de una respuesta entrante. Sin
+  // organizationId a propósito -- el único dato que trae el Reply-To es el
+  // id del presupuesto (ver src/lib/email/direccionRespuesta.ts). Es seguro
+  // porque el id es un uuid y la organización sale de la propia fila: de
+  // acá en adelante todo se filtra por el organizationId que devuelve esta
+  // query, nunca por uno que venga de afuera.
+  findParaRespuestaEntrante(presupuestoId: string) {
+    return prisma.presupuesto.findFirst({
+      where: { id: presupuestoId, deletedAt: null },
+      select: {
+        id: true,
+        organizationId: true,
+        clienteId: true,
+        estado: true,
+        cliente: { select: { email: true } },
+      },
+    });
+  },
+
   // Etapa 5, paso 2 (§6.3, punto 4): transición de estado que hace el job
   // de envío, nunca la pantalla de revisión. `where.estado: { in: desde }`
   // hace el UPDATE condicional -- si alguien aceptó/rechazó el presupuesto

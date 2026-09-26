@@ -43,7 +43,9 @@ export class ResendEmailProvider implements EmailProvider {
           // `text` y no `html`: armarEmailSeguimiento() (envioContenido.ts)
           // devuelve texto plano, incluida la línea de baja de §5.
           text: email.body,
-          ...(this.replyTo ? { reply_to: this.replyTo } : {}),
+          // El del propio email gana: lleva el id del presupuesto. El del
+          // constructor (EMAIL_REPLY_TO, sin tag) queda de respaldo.
+          ...((email.replyTo ?? this.replyTo) ? { reply_to: email.replyTo ?? this.replyTo } : {}),
         }),
       });
     } catch (err) {

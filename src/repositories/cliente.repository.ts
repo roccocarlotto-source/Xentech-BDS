@@ -20,6 +20,28 @@ export const clienteRepository = {
     });
   },
 
+  // Respaldo de la etapa 5 (§6.4) para NO perder una baja: si la respuesta
+  // llega sin el tag del presupuesto en el Reply-To (un cliente de correo
+  // que lo recorta, alguien que escribe directo al buzón), se intenta
+  // ubicar al cliente por su email.
+  //
+  // Es la ÚNICA query del repo sin filtro por organizationId, y por eso
+  // exige unicidad: si el mismo email figura en dos organizaciones no hay
+  // forma de saber a cuál corresponde y devuelve null en vez de adivinar.
+  // Nunca se usa para leer ni escribir datos del cliente: solo para saber a
+  // quién dar de baja.
+  async findUnicoPorEmailEnTodasLasOrganizaciones(email: string) {
+    const normalizado = email.trim().toLowerCase();
+    if (!normalizado) return null;
+
+    const candidatos = await prisma.cliente.findMany({
+      where: { email: { equals: normalizado, mode: "insensitive" }, deletedAt: null },
+      select: { id: true, organizationId: true },
+      take: 2,
+    });
+    return candidatos.length === 1 ? candidatos[0] : null;
+  },
+
   // Resolución de identidad del agente de WhatsApp (ver
   // docs/ai-agent-architecture.md §5): matchea por teléfono DENTRO de la
   // organización dueña del número de WhatsApp que recibió el mensaje. Si
