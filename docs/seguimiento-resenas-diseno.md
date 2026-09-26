@@ -490,6 +490,25 @@ Explícitamente NO cubierto:
 - **Un mensaje que falla se reintenta para siempre.** Si el modelo nunca puede procesar un texto puntual, ese mensaje vuelve en cada tick. Falta un contador de intentos, como el que tienen los `Envio`.
 - **Riesgo: una respuesta falsificada puede mover el estado de un presupuesto.** Resend calcula SPF/DKIM/DMARC y los devuelve, pero la etapa 5 no los guarda y esto no los mira. Para la baja ser permisivo está bien; acá no. Es el arreglo natural antes de confiar en ACEPTA/RECHAZA sin revisión humana.
 
+### Estado de la etapa 7, parte 2: panel de seguimiento y pedido de reseña (2026-09-26)
+
+La pantalla donde se ve todo lo anterior, y el botón que cierra el círculo con las reseñas.
+
+**Decisión de Rocco (2026-09-26) sobre el link de reseña: sale automático, pero recién cuando una persona habilita "Solicitar reseña".** O sea que el envío no lo dispara la IA: la IA marca el presupuesto como ACEPTADO y alguien aprieta el botón. Una clasificación equivocada nunca termina en un pedido de reseña a quien no aceptó nada.
+
+- **`GET /api/seguimiento/presupuestos`:** por presupuesto, el cliente, el estado, la ÚLTIMA respuesta entrante con su clasificación y resumen, y si ya se pidió reseña. Gate `requireAgentEnabled("SEGUIMIENTO_RESENAS")` y no `requireOrgAdmin`: mirar presupuestos y pedir una reseña es trabajo del vendedor, no solo del admin.
+- **`POST /api/seguimiento/presupuestos/:id/solicitar-resena`:** exige que el presupuesto esté `ACEPTADO` (409 si no), genera el token con el `generarLinkResena` que ya existía y lo manda por email.
+- **Si el email no se puede mandar, el token igual se genera** y la pantalla muestra el link para copiarlo. Pasa en tres casos, y cada uno dice por qué: el cliente no tiene email, falta `APP_PUBLIC_URL` (nueva env var, para armar el link absoluto) o no hay proveedor de email. Sin esto, el botón sería inútil hasta que haya dominio.
+- **Pantalla `/seguimiento`:** tabla con un filtro "solo los que necesitan que alguien responda", que es el que usa la marca `requiereVendedor` de la parte 1. Las filas que necesitan atención quedan resaltadas.
+- **El botón no se ofrece dos veces:** `resenaSolicitada` sale de contar los `TokenResena` del presupuesto.
+- Tests: 7 del service y 7 de la pantalla. Backend 317, frontend 57, los cinco chequeos de cada proyecto en verde.
+
+Explícitamente NO cubierto:
+
+- **No se puede cambiar el estado de un presupuesto a mano desde el panel.** Si la IA clasificó mal, o si el cliente aceptó por teléfono, no hay forma de marcarlo como aceptado desde la pantalla -- y sin `ACEPTADO` el botón de reseña no aparece. Es el agujero más molesto que queda de esta etapa.
+- **No se ve la conversación completa**, solo la última respuesta con su resumen.
+- **`APP_PUBLIC_URL` no está configurada** y no lo va a estar hasta que haya dominio y despliegue.
+
 ### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
 **Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.
