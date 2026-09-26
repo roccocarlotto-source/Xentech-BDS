@@ -3,6 +3,14 @@
 ## Project Identity
 
 - **Project:** Xentech
+- **Repo:** `roccocarlotto-source/Xentech-BDS`. **Reemplaza a
+  `Base-de-datos-Xentech`**, que quedó privado y sin uso desde el
+  2026-09-26: había presupuestos reales de clientes en su historial de git
+  y las refs de pull request de GitHub no se pueden purgar, así que la
+  única salida fue un repo nuevo. El motivo completo y lo que se hizo están
+  en `docs/seguimiento-resenas-diseno.md`, sección "Visibilidad del repo y
+  mudanza a Xentech-BDS". Los PRs #1 a #50 y sus discusiones quedaron en el
+  repo viejo; acá la numeración arranca de cero.
 - **Description:** SaaS multi-tenant para gestionar una base de datos
   interactiva de clientes (contacto + estado de cuota), con agentes de
   IA opcionales habilitables por organización por el admin de
@@ -226,6 +234,19 @@ contenedor. Dos detalles de ese camino: `gh` igual no está instalado
 explícito en los `PUT`/`POST` (sin eso devuelve 415, no 400).
 **Criterio: probar primero `curl` a `api.github.com` desde el
 contenedor; si da 403, recién entonces el flujo con `device_bash`.**
+
+Un detalle aparte, encontrado al mudarse a este repo: agregar un repo al
+alcance de la sesión (`add_repo`) deja leer y clonar, pero **el push se
+rechaza si ese repo no está en la lista de repos que la app de Claude
+tiene autorizados en GitHub**. El error lo dice ("Claude doesn't have
+GitHub access to ..."), y se arregla del lado de GitHub, no de la sesión:
+en `https://github.com/apps/claude/installations/select_target`, agregar
+el repo a "Repository access". Vale la pena chequearlo antes de empezar a
+trabajar sobre un repo recién creado.
+
+Tampoco se puede crear un repo desde la sesión: `POST /user/repos`
+devuelve 403 ("sessions are bound to their configured repositories"). Eso
+lo tiene que hacer Rocco a mano.
 
 ## Si `prisma:generate`/`typecheck` falla en Actions: leer el log primero
 
