@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ApiError, request } from "../lib/api";
@@ -38,40 +38,50 @@ function textoAIntervalos(texto: string): number[] | null {
   return numeros;
 }
 
+// El componente que carga, separado del formulario a propósito: así el
+// estado del form se inicializa DESDE props con useState, sin un useEffect
+// que lo sincronice. Un setState dentro de un efecto dispara renders en
+// cascada (el lint del frontend lo marca) y además es la misma convención
+// que ImportPresupuestosPage, que precarga en la reacción a la respuesta y
+// no en un efecto.
 export function ConfigSeguimientoPage() {
-  const queryClient = useQueryClient();
-
   const configQuery = useQuery({
     queryKey: QUERY_KEY,
     queryFn: ({ signal }) =>
       request<ConfigSeguimiento>("/config-seguimiento", { getAccessToken, signal }),
   });
 
-  const [intervalos, setIntervalos] = useState("");
-  const [maxIntentos, setMaxIntentos] = useState(3);
-  const [horaInicio, setHoraInicio] = useState(9);
-  const [horaFin, setHoraFin] = useState(20);
-  const [zonaHoraria, setZonaHoraria] = useState("America/Montevideo");
-  const [diasToken, setDiasToken] = useState(30);
-  const [plantillasEmail, setPlantillasEmail] = useState<PlantillaEmail[]>([]);
-  const [plantillasWhatsapp, setPlantillasWhatsapp] = useState<PlantillaWhatsapp[]>([]);
-  const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  if (configQuery.isLoading) return <div className="page-message">Cargando…</div>;
 
-  // Precarga cuando llega la config. Depende solo de `data`: no se pisa lo
-  // que la persona esté escribiendo, porque la query tiene los defaults de
-  // react-query y no refetchea sola mientras se edita.
-  const data = configQuery.data;
-  useEffect(() => {
-    if (!data) return;
-    setIntervalos(intervalosATexto(data.intervalosDias));
-    setMaxIntentos(data.maxIntentos);
-    setHoraInicio(data.horaInicioEnvio);
-    setHoraFin(data.horaFinEnvio);
-    setZonaHoraria(data.zonaHoraria);
-    setDiasToken(data.diasValidezTokenResena);
-    setPlantillasEmail(data.plantillas.EMAIL);
-    setPlantillasWhatsapp(data.plantillas.WHATSAPP);
-  }, [data]);
+  if (configQuery.isError || !configQuery.data) {
+    const err = configQuery.error;
+    const mensaje =
+      err instanceof ApiError && err.status === 404
+        ? "El módulo de seguimiento y reseñas no está habilitado para tu organización."
+        : "No se pudo cargar la configuración.";
+    return <div className="page-message">{mensaje}</div>;
+  }
+
+  return <ConfigSeguimientoForm inicial={configQuery.data} />;
+}
+
+function ConfigSeguimientoForm({ inicial }: { inicial: ConfigSeguimiento }) {
+  const queryClient = useQueryClient();
+
+  const [intervalos, setIntervalos] = useState(intervalosATexto(inicial.intervalosDias));
+  const [maxIntentos, setMaxIntentos] = useState(inicial.maxIntentos);
+  const [horaInicio, setHoraInicio] = useState(inicial.horaInicioEnvio);
+  const [horaFin, setHoraFin] = useState(inicial.horaFinEnvio);
+  const [zonaHoraria, setZonaHoraria] = useState(inicial.zonaHoraria);
+  const [diasToken, setDiasToken] = useState(inicial.diasValidezTokenResena);
+  const [plantillasEmail, setPlantillasEmail] = useState<PlantillaEmail[]>(
+    inicial.plantillas.EMAIL,
+  );
+  const [plantillasWhatsapp, setPlantillasWhatsapp] = useState<PlantillaWhatsapp[]>(
+    inicial.plantillas.WHATSAPP,
+  );
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  const [personalizada, setPersonalizada] = useState(inicial.personalizada);
 
   const guardarMutation = useMutation({
     mutationFn: (input: ConfigSeguimientoInput) =>
@@ -82,6 +92,7 @@ export function ConfigSeguimientoPage() {
       }),
     onSuccess: (config) => {
       queryClient.setQueryData(QUERY_KEY, config);
+      setPersonalizada(config.personalizada);
     },
   });
 
@@ -140,17 +151,6 @@ export function ConfigSeguimientoPage() {
     });
   }
 
-  if (configQuery.isLoading) return <div className="page-message">Cargando…</div>;
-
-  if (configQuery.isError) {
-    const err = configQuery.error;
-    const mensaje =
-      err instanceof ApiError && err.status === 404
-        ? "El módulo de seguimiento y reseñas no está habilitado para tu organización."
-        : "No se pudo cargar la configuración.";
-    return <div className="page-message">{mensaje}</div>;
-  }
-
   const errorGuardar =
     guardarMutation.error instanceof ApiError
       ? guardarMutation.error.message
@@ -165,7 +165,7 @@ export function ConfigSeguimientoPage() {
         <Link to="/">Volver</Link>
       </header>
 
-      {data && !data.personalizada && (
+      {!personalizada && (
         <p className="agent-config-hint">
           Todavía no guardaste una configuración propia. Lo que ves abajo no es un formulario vacío:
           son los valores con los que el seguimiento <strong>ya está funcionando</strong>.
