@@ -1,3 +1,4 @@
+import type { ClasificacionRespuesta } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 
 // Etapa 5 (§6.3 punto 3: "envía por el canal y registra el Mensaje", y
@@ -55,6 +56,46 @@ export const mensajeSeguimientoRepository = {
         fecha: data.fecha,
         externalId: data.externalId,
       },
+    });
+  },
+
+  // Etapa 7: la cola de trabajo de la clasificación. No hace falta una
+  // tabla de cola aparte -- los entrantes con `clasificacionIa` en null son
+  // exactamente los que la IA todavía no miró.
+  buscarSinClasificar(limit: number) {
+    return prisma.mensajeSeguimiento.findMany({
+      where: { direccion: "INBOUND", clasificacionIa: null, presupuestoId: { not: null } },
+      orderBy: { fecha: "asc" },
+      take: limit,
+      select: {
+        id: true,
+        organizationId: true,
+        presupuestoId: true,
+        clienteId: true,
+        contenido: true,
+        presupuesto: {
+          select: { estado: true, vendedorId: true, creadoPorId: true, descripcion: true },
+        },
+        cliente: { select: { nombre: true, personaContacto: true } },
+      },
+    });
+  },
+
+  // `clasificacionIa: null` en el where hace el claim: si dos corridas del
+  // poller se solapan, la segunda actualiza 0 filas y no vuelve a llamar al
+  // modelo por el mismo mensaje (ni a mandar dos avisos al vendedor).
+  guardarClasificacion(
+    id: string,
+    organizationId: string,
+    data: {
+      clasificacionIa: ClasificacionRespuesta;
+      resumenIa: string;
+      requiereVendedor: boolean;
+    },
+  ) {
+    return prisma.mensajeSeguimiento.updateMany({
+      where: { id, organizationId, clasificacionIa: null },
+      data,
     });
   },
 };

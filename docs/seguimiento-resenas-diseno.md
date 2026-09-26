@@ -471,6 +471,25 @@ Explícitamente NO cubierto:
 - **No hay vista previa de cómo queda el email** con la plantilla aplicada. Se escribe a ciegas.
 - **Cambiar los intervalos no reprograma los `Envio` ya creados:** afecta a los presupuestos nuevos. Reprogramar lo existente sería otro paso, y hay que decidir qué pasa con los pasos ya enviados.
 
+### Estado de la etapa 7, parte 1: clasificación con IA y aviso al vendedor (2026-09-26)
+
+Con las respuestas ya entrando (etapa 5), esto es qué se hace con ellas. **Decisión de Rocco del 2026-09-26: al vendedor se le avisa por las dos vías, marca en el panel Y email.**
+
+- **`src/lib/seguimiento/clasificacionRespuesta.ts`:** una sola tool forzada con el esquema fijo, mismo patrón que la extracción de presupuestos (§6.2). Las categorías salen del enum `ClasificacionRespuesta` que ya existía desde la etapa 2; no se inventan acá. El prompt es explícito en dos cosas: ante la duda, la categoría más conservadora, y "me interesa" **no** es ACEPTA.
+- **`consecuenciasDe()`, pura y aparte de la llamada al modelo:** qué hace cada clasificación. ACEPTA cierra el presupuesto y avisa (alguien tiene que arrancar el trabajo); RECHAZA y COMPRO_EN_OTRO_LADO cierran sin molestar a nadie; PIDE_DESCUENTO y QUIERE_LLAMADA avisan sin tocar el estado; INTERESADO, LO_ESTA_PENSANDO y BAJA no disparan nada -- la baja ya la resolvió la etapa 5 antes de que la IA mirara.
+- **Corre en un poller, no en el webhook:** llamar al modelo es lento y el webhook de Resend tiene que responder rápido. La baja sí va inline, porque no puede esperar. La cola es la propia tabla: los INBOUND con `clasificacionIa` en null, sin tabla de cola aparte.
+- **El guardado ES el claim:** el `updateMany` lleva `clasificacionIa: null` en el where, así que si dos corridas se solapan la segunda actualiza 0 filas y no vuelve a llamar al modelo ni manda dos avisos.
+- **Se clasifica lo que la persona escribió**, no la cadena citada: misma función que usa la detección de baja.
+- **El email va al vendedor del presupuesto**, o a quien lo cargó si no hay vendedor asignado (pasa: el nombre extraído del documento puede no matchear ningún usuario). Sin proveedor de email configurado, la marca en el panel igual queda -- el aviso no se pierde, llega más tarde.
+- Tests: 17 nuevos. Backend 310, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto:
+
+- **El panel donde ver todo esto es la parte 2** de esta etapa, junto con el botón "Solicitar reseña". Hoy `requiereVendedor` se marca pero no hay pantalla que lo muestre.
+- **Sin probar contra un modelo real:** falta `OPENROUTER_API_KEY`.
+- **Un mensaje que falla se reintenta para siempre.** Si el modelo nunca puede procesar un texto puntual, ese mensaje vuelve en cada tick. Falta un contador de intentos, como el que tienen los `Envio`.
+- **Riesgo: una respuesta falsificada puede mover el estado de un presupuesto.** Resend calcula SPF/DKIM/DMARC y los devuelve, pero la etapa 5 no los guarda y esto no los mira. Para la baja ser permisivo está bien; acá no. Es el arreglo natural antes de confiar en ACEPTA/RECHAZA sin revisión humana.
+
 ### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
 **Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.
