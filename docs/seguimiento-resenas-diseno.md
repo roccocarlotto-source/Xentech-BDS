@@ -364,6 +364,21 @@ Rocco subió 4 presupuestos reales a `docs/ejemplos-presupuestos/`. **Tienen dat
 
 Sin probar todavía contra OpenRouter real (no hay `OPENROUTER_API_KEY` en la nube). Cuando haya una clave, correr la extracción sobre los 4 ejemplos es la prueba que falta.
 
+### Estado de la etapa 5: proveedor de email real, Resend (2026-09-26)
+
+Hecho el adapter, con lo que eso implica: el motor del paso 2 deja de estar "encendido pero inactivo" en cuanto existan las env vars.
+
+- **`src/lib/email/resendEmailProvider.ts`:** `ResendEmailProvider` implementa `EmailProvider` con un solo `fetch` a `POST https://api.resend.com/emails`, sin SDK -- mismo criterio que `OpenRouterProvider`. El cuerpo va como `text` (lo que devuelve `armarEmailSeguimiento`, incluida la línea de baja de §5), nunca como `html`.
+- **Nunca lanza.** Todo error -- red caída, status de error, respuesta ilegible, 200 sin `id` -- vuelve como `{ ok: false, error }`, porque es `envioJob.ts` el que decide entre reintentar y marcar `FALLIDO` según los intentos. Una excepción acá abortaría el lote entero de `Envio` vencidos.
+- **`getEmailProvider()`** ahora devuelve el provider cuando están **`RESEND_API_KEY` y `EMAIL_FROM`**, y `null` si falta alguna. Exige las dos a propósito: sin remitente de dominio verificado Resend devuelve 403 a todo, y arrancar "medio configurado" solo gastaría los `intentos` de cada `Envio` contra un error seguro. Con la API key puesta y `EMAIL_FROM` faltando, avisa por `console.warn` una sola vez -- el caso peligroso es el silencioso. `EMAIL_REPLY_TO` es opcional (sin ella, las respuestas van al remitente).
+- Tests: `resendEmailProvider.test.ts` (10 casos, `fetch` inyectado, sin red). Backend 229 tests, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto:
+
+- **Sin probar contra Resend real.** Falta una API key y, sobre todo, un dominio verificado: eso depende de la decisión de dominio/hosting, que sigue abierta (§2 y `docs/deployment.md`). Hasta entonces el motor sigue inactivo, ahora por falta de configuración y no por falta de código.
+- **Recepción de respuestas y detección de "BAJA"** (§6.4, §7): sigue sin cubrir. Es el webhook de entrada de Resend, paso aparte.
+- **Riesgo conocido, sin cubrir: envío exitoso con respuesta perdida.** Si Resend acepta el mail pero la respuesta HTTP se corta, el job lo toma como fallo transitorio, vuelve el `Envio` a `PROGRAMADO` y lo reintenta: el cliente recibe el mismo mail dos veces. La idempotencia de §6.3 (`claveIdempotencia` + UPDATE condicional) cubre "dos corridas en paralelo", no este caso. El arreglo natural es mandar `claveIdempotencia` en el header `Idempotency-Key` de Resend (válido 24 h), pero hay un detalle a resolver antes: Resend rechaza la misma clave con un payload distinto, así que un reintento después de corregir el email del cliente pasaría de fallo transitorio a error duro. Requiere decidir qué entra en la clave; queda anotado, no implementado.
+
 ### Visibilidad del repo
 
 Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**
