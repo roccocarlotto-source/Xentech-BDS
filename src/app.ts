@@ -12,6 +12,7 @@ import { meRouter } from "./routes/me";
 import { adminOrganizationsRouter } from "./routes/adminOrganizations";
 import { agentConfigRouter } from "./routes/agentConfig";
 import { whatsappConnectionRouter } from "./routes/whatsappConnection";
+import { configSeguimientoRouter } from "./routes/configSeguimiento";
 import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { usersRouter } from "./routes/users";
 import { conversationsRouter } from "./routes/conversations";
@@ -64,6 +65,7 @@ export function createApp() {
   app.use(adminOrganizationsRouter);
   app.use(agentConfigRouter);
   app.use(whatsappConnectionRouter);
+  app.use(configSeguimientoRouter);
   app.use(knowledgeBaseEntriesRouter);
   app.use(usersRouter);
   app.use(conversationsRouter);

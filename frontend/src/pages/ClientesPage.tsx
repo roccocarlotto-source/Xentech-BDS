@@ -111,6 +111,9 @@ export function ClientesPage() {
           )}
           {me?.role === "ADMIN" && !me.isPlatformAdmin && (
             <>
+              {me.agentesHabilitados?.includes("SEGUIMIENTO_RESENAS") && (
+                <Link to="/seguimiento/configuracion">Configurar seguimiento</Link>
+              )}
               <Link to="/agente-whatsapp">Agente de WhatsApp</Link>
               <Link to="/usuarios">Usuarios</Link>
             </>
