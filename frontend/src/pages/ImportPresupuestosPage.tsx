@@ -166,8 +166,18 @@ export function ImportPresupuestosPage() {
     },
   });
 
+  // Decisión 1 del 2026-09-26: el email dejó de ser obligatorio, pero sin
+  // NINGÚN dato de contacto no hay seguimiento posible por ningún canal. El
+  // backend valida lo mismo (commitImportPresupuestoSchema para un cliente
+  // nuevo, el service para uno existente); esto es para no hacer el viaje.
+  const clienteElegido = clientesQuery.data?.find((c) => c.id === clienteId);
+  const contactoValido =
+    modoCliente === "existente"
+      ? !!clienteElegido && (!!clienteElegido.email || !!clienteElegido.telefono)
+      : telefonoNuevo.trim().length > 0 || emailNuevo.trim().length > 0;
   const clienteValido =
-    modoCliente === "existente" ? clienteId.trim().length > 0 : nombreNuevo.trim().length > 0;
+    (modoCliente === "existente" ? clienteId.trim().length > 0 : nombreNuevo.trim().length > 0) &&
+    contactoValido;
   const whatsappValido =
     seguimientoWhatsapp === "no" || (seguimientoWhatsapp === "si" && !!origenWhatsapp);
   const puedeConfirmar = clienteValido && seguimientoWhatsapp !== "" && whatsappValido;
@@ -309,6 +319,13 @@ export function ImportPresupuestosPage() {
                 </label>
               </>
             )}
+
+            {!contactoValido && (
+              <p className="agent-config-hint">
+                Hace falta al menos un dato de contacto: con email el seguimiento va por email, y si
+                no hay, por WhatsApp.
+              </p>
+            )}
           </fieldset>
 
           <fieldset className="agent-config-fieldset">
@@ -366,8 +383,9 @@ export function ImportPresupuestosPage() {
             <legend>Seguimiento por WhatsApp *</legend>
             <p className="agent-config-hint">
               Obligatorio: solo marcá que sí si el cliente ya dio consentimiento para WhatsApp
-              (pidió el presupuesto por ahí, o el vendedor lo acordó verbalmente). Sin
-              consentimiento, el seguimiento va solo por email.
+              (pidió el presupuesto por ahí, o el vendedor lo acordó verbalmente). El seguimiento
+              usa un solo canal: email si el cliente tiene email, y si no tiene, WhatsApp. Sin email
+              y sin consentimiento de WhatsApp no hay seguimiento posible.
             </p>
             <div className="agent-config-checkbox-group">
               <label className="agent-config-checkbox">
@@ -389,7 +407,7 @@ export function ImportPresupuestosPage() {
                     setOrigenWhatsapp("");
                   }}
                 />
-                No, solo por email
+                No, sin consentimiento de WhatsApp
               </label>
             </div>
 

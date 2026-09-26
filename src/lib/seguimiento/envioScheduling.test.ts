@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calcularEnviosEmail } from "./envioScheduling";
+import { calcularEnvios, elegirCanalSeguimiento } from "./envioScheduling";
 
 const PRESUPUESTO_ID = "presu-1";
 
-test("calcularEnviosEmail programa un Envio por cada intervalo, con el paso e idempotencia esperados", () => {
-  const envios = calcularEnviosEmail({
+test("calcularEnvios programa un Envio por cada intervalo, con el paso e idempotencia esperados", () => {
+  const envios = calcularEnvios({
     presupuestoId: PRESUPUESTO_ID,
+    canal: "EMAIL",
     fechaReferencia: new Date("2026-08-12T12:00:00Z"),
     intervalosDias: [2, 7, 15],
   });
@@ -23,9 +24,10 @@ test("calcularEnviosEmail programa un Envio por cada intervalo, con el paso e id
   assert.ok(envios.every((e) => e.canal === "EMAIL"));
 });
 
-test("calcularEnviosEmail cuenta los días desde la MISMA fecha de referencia, no acumulados", () => {
-  const envios = calcularEnviosEmail({
+test("calcularEnvios cuenta los días desde la MISMA fecha de referencia, no acumulados", () => {
+  const envios = calcularEnvios({
     presupuestoId: PRESUPUESTO_ID,
+    canal: "EMAIL",
     fechaReferencia: new Date("2026-08-12T12:00:00Z"),
     intervalosDias: [2, 7, 15],
     horaInicioEnvio: 9,
@@ -39,9 +41,10 @@ test("calcularEnviosEmail cuenta los días desde la MISMA fecha de referencia, n
   assert.equal(envios[2].programadoPara.toISOString().slice(0, 10), "2026-08-27");
 });
 
-test("calcularEnviosEmail agenda a la hora de inicio de envío configurada, en la zona horaria de la organización", () => {
-  const envios = calcularEnviosEmail({
+test("calcularEnvios agenda a la hora de inicio de envío configurada, en la zona horaria de la organización", () => {
+  const envios = calcularEnvios({
     presupuestoId: PRESUPUESTO_ID,
+    canal: "EMAIL",
     fechaReferencia: new Date("2026-08-12T12:00:00Z"),
     intervalosDias: [2],
     horaInicioEnvio: 9,
@@ -53,9 +56,10 @@ test("calcularEnviosEmail agenda a la hora de inicio de envío configurada, en l
   assert.equal(envios[0].programadoPara.toISOString(), "2026-08-14T12:00:00.000Z");
 });
 
-test("calcularEnviosEmail respeta una hora de inicio de envío distinta", () => {
-  const envios = calcularEnviosEmail({
+test("calcularEnvios respeta una hora de inicio de envío distinta", () => {
+  const envios = calcularEnvios({
     presupuestoId: PRESUPUESTO_ID,
+    canal: "EMAIL",
     fechaReferencia: new Date("2026-08-12T12:00:00Z"),
     intervalosDias: [2],
     horaInicioEnvio: 14,
@@ -65,9 +69,10 @@ test("calcularEnviosEmail respeta una hora de inicio de envío distinta", () => 
   assert.equal(envios[0].programadoPara.toISOString(), "2026-08-14T17:00:00.000Z");
 });
 
-test("calcularEnviosEmail usa los defaults del schema cuando no se pasa config", () => {
-  const envios = calcularEnviosEmail({
+test("calcularEnvios usa los defaults del schema cuando no se pasa config", () => {
+  const envios = calcularEnvios({
     presupuestoId: PRESUPUESTO_ID,
+    canal: "EMAIL",
     fechaReferencia: new Date("2026-08-12T12:00:00Z"),
   });
 
@@ -75,4 +80,65 @@ test("calcularEnviosEmail usa los defaults del schema cuando no se pasa config",
     envios.map((e) => e.paso),
     [1, 2, 3],
   );
+});
+
+// --- elegirCanalSeguimiento (decisión 1 del 2026-09-26) ---
+
+test("elegirCanalSeguimiento: con email, gana email aunque haya teléfono y consentimiento", () => {
+  assert.equal(
+    elegirCanalSeguimiento({
+      tieneEmail: true,
+      tieneTelefono: true,
+      consentimientoWhatsapp: true,
+    }),
+    "EMAIL",
+  );
+});
+
+test("elegirCanalSeguimiento: sin email, WhatsApp es el respaldo", () => {
+  assert.equal(
+    elegirCanalSeguimiento({
+      tieneEmail: false,
+      tieneTelefono: true,
+      consentimientoWhatsapp: true,
+    }),
+    "WHATSAPP",
+  );
+});
+
+test("elegirCanalSeguimiento: sin consentimiento de WhatsApp no se usa WhatsApp (§5)", () => {
+  assert.equal(
+    elegirCanalSeguimiento({
+      tieneEmail: false,
+      tieneTelefono: true,
+      consentimientoWhatsapp: false,
+    }),
+    null,
+  );
+});
+
+test("elegirCanalSeguimiento: sin ningún dato de contacto no hay canal", () => {
+  assert.equal(
+    elegirCanalSeguimiento({
+      tieneEmail: false,
+      tieneTelefono: false,
+      consentimientoWhatsapp: true,
+    }),
+    null,
+  );
+});
+
+test("calcularEnvios arma la clave de idempotencia con el canal elegido", () => {
+  const envios = calcularEnvios({
+    presupuestoId: PRESUPUESTO_ID,
+    canal: "WHATSAPP",
+    fechaReferencia: new Date("2026-08-12T12:00:00Z"),
+    intervalosDias: [2, 7],
+  });
+
+  assert.deepEqual(
+    envios.map((e) => e.claveIdempotencia),
+    ["presu-1:1:WHATSAPP", "presu-1:2:WHATSAPP"],
+  );
+  assert.ok(envios.every((e) => e.canal === "WHATSAPP"));
 });

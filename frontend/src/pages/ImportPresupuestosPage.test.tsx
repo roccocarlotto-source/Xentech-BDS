@@ -142,6 +142,34 @@ describe("ImportPresupuestosPage", () => {
     expect(screen.getByLabelText(/Persona de contacto/)).toHaveValue("");
   });
 
+  test("sin email ni teléfono no se puede guardar (decisión 1: al menos un dato de contacto)", async () => {
+    fetchMock.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/presupuestos/import/preview")) {
+        return jsonResponse({
+          ...previewResponse,
+          datos: { ...previewResponse.datos, telefono: null, email: null },
+        });
+      }
+      if (url.endsWith("/clientes")) return jsonResponse(clientes);
+      throw new Error(`fetch inesperado: ${url}`);
+    });
+
+    renderPage();
+    await subirArchivo();
+    await screen.findByLabelText("Nombre del cliente (empresa) *");
+
+    expect(screen.getByText(/al menos un dato de contacto/)).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("radio", { name: "No, sin consentimiento de WhatsApp" }),
+    );
+    expect(screen.getByRole("button", { name: "Guardar presupuesto" })).toBeDisabled();
+
+    // Con un email cargado a mano, ya se puede.
+    await userEvent.type(screen.getByLabelText("Email"), "compras@laespiga.example");
+    expect(screen.getByRole("button", { name: "Guardar presupuesto" })).toBeEnabled();
+  });
+
   test("sugiere un cliente existente cuando el teléfono matchea", async () => {
     clientes = [clienteExistente];
     renderPage();
@@ -160,7 +188,9 @@ describe("ImportPresupuestosPage", () => {
     const guardar = screen.getByRole("button", { name: "Guardar presupuesto" });
     expect(guardar).toBeDisabled();
 
-    await userEvent.click(screen.getByRole("radio", { name: "No, solo por email" }));
+    await userEvent.click(
+      screen.getByRole("radio", { name: "No, sin consentimiento de WhatsApp" }),
+    );
     expect(guardar).toBeEnabled();
   });
 
@@ -186,7 +216,9 @@ describe("ImportPresupuestosPage", () => {
     await subirArchivo();
     await screen.findByLabelText("Nombre del cliente (empresa) *");
 
-    await userEvent.click(screen.getByRole("radio", { name: "No, solo por email" }));
+    await userEvent.click(
+      screen.getByRole("radio", { name: "No, sin consentimiento de WhatsApp" }),
+    );
     await userEvent.click(screen.getByRole("button", { name: "Guardar presupuesto" }));
 
     await screen.findByText("Presupuesto guardado correctamente.");

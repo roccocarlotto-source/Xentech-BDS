@@ -363,6 +363,16 @@ async function resolverCliente(
     if (!cliente) {
       throw new AppError("El cliente indicado no existe en esta organización", 400);
     }
+    // Mismo requisito que para un cliente nuevo (decisión 1 del 2026-09-26,
+    // ver clienteSeleccionSchema): sin email ni teléfono no hay seguimiento
+    // posible por ningún canal. Acá no lo puede chequear el schema, que solo
+    // ve el id.
+    if (!cliente.email && !cliente.telefono) {
+      throw new AppError(
+        "El cliente elegido no tiene email ni teléfono: cargale al menos uno antes de guardar el presupuesto",
+        400,
+      );
+    }
     return cliente.id;
   }
 

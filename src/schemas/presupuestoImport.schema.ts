@@ -105,6 +105,19 @@ export const commitImportPresupuestoSchema = z
     message:
       "Falta indicar el origen del consentimiento de WhatsApp (obligatorio si el seguimiento por WhatsApp está activado)",
     path: ["consentimientoWhatsappOrigen"],
-  });
+  })
+  // Decisión 1 del 2026-09-26: el email NO es obligatorio, pero sin ningún
+  // dato de contacto no hay seguimiento posible por ningún canal, y guardar el
+  // presupuesto igual solo esconde el problema. Va acá y no adentro de
+  // clienteSeleccionSchema porque z.discriminatedUnion no acepta una opción
+  // con .refine(). Para un cliente EXISTENTE el mismo chequeo está en el
+  // service: el schema solo ve el id.
+  .refine(
+    (v) => v.cliente.modo !== "nuevo" || !!v.cliente.email?.trim() || !!v.cliente.telefono?.trim(),
+    {
+      message: "Hace falta al menos un dato de contacto del cliente: email o teléfono",
+      path: ["cliente", "email"],
+    },
+  );
 
 export type CommitImportPresupuestoInput = z.infer<typeof commitImportPresupuestoSchema>;

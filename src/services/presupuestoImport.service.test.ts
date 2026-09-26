@@ -275,8 +275,27 @@ function crearDeps(): {
   crearConConsentimientosLlamadas: unknown[];
 } {
   const clientes: Cliente[] = [
-    { id: "cli-1", organizationId: ORG, nombre: "Panadería La Espiga" } as Cliente,
-    { id: "cli-otra-org", organizationId: OTRA_ORG, nombre: "De otra org" } as Cliente,
+    {
+      id: "cli-1",
+      organizationId: ORG,
+      nombre: "Panadería La Espiga",
+      email: "contacto@laespiga.example",
+      telefono: null,
+    } as Cliente,
+    {
+      id: "cli-solo-nombre",
+      organizationId: ORG,
+      nombre: "Sin contacto",
+      email: null,
+      telefono: null,
+    } as Cliente,
+    {
+      id: "cli-otra-org",
+      organizationId: OTRA_ORG,
+      nombre: "De otra org",
+      email: "otra@example.com",
+      telefono: null,
+    } as Cliente,
   ];
   const usuarios: User[] = [
     { id: "user-vendedor", organizationId: ORG, email: "martin@carteles.example" } as User,
@@ -416,5 +435,20 @@ test("commitImportPresupuesto rechaza un vendedorId que no existe en la organiza
   await assert.rejects(
     () => commitImportPresupuesto(ORG, "user-1", entradaBase({ vendedorId: "no-existe" }), deps),
     (err: unknown) => err instanceof AppError && err.status === 400,
+  );
+});
+
+test("commitImportPresupuesto rechaza un cliente existente sin email ni teléfono (decisión 1)", async () => {
+  const { deps } = crearDeps();
+  await assert.rejects(
+    () =>
+      commitImportPresupuesto(
+        ORG,
+        "user-1",
+        entradaBase({ cliente: { modo: "existente", clienteId: "cli-solo-nombre" } }),
+        deps,
+      ),
+    (err: unknown) =>
+      err instanceof AppError && err.status === 400 && /email ni teléfono/.test(err.message),
   );
 });

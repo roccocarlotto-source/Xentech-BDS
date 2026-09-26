@@ -1,7 +1,11 @@
 import { DateTime } from "luxon";
 
 // Etapa 5, paso 1 de docs/seguimiento-resenas-diseno.md (§6.3): calcula los
-// `Envio` de email a programar cuando se crea un `Presupuesto`.
+// `Envio` a programar cuando se crea un `Presupuesto`, y por qué canal.
+//
+// El canal sale de la decisión 1 de Rocco del 2026-09-26 (§2): email si el
+// cliente tiene email, WhatsApp si no. WhatsApp es RESPALDO, no un canal
+// paralelo -- un mismo paso de la secuencia nunca se manda por los dos.
 //
 // §4 describe `ConfigSeguimiento.intervalosDias` como "días entre el envío
 // del presupuesto y cada paso de seguimiento" -- son offsets desde UNA
@@ -18,15 +22,45 @@ export const INTERVALOS_DIAS_DEFAULT: readonly number[] = [2, 7, 15];
 export const HORA_INICIO_ENVIO_DEFAULT = 9;
 export const ZONA_HORARIA_DEFAULT = "America/Montevideo";
 
-export interface EnvioEmailAProgramar {
+export type CanalSeguimientoElegido = "EMAIL" | "WHATSAPP";
+
+export interface EnvioAProgramar {
   paso: number;
-  canal: "EMAIL";
+  canal: CanalSeguimientoElegido;
   programadoPara: Date;
   claveIdempotencia: string;
 }
 
-export interface CalcularEnviosEmailParams {
+export interface ElegirCanalParams {
+  tieneEmail: boolean;
+  tieneTelefono: boolean;
+  // §5: WhatsApp necesita consentimiento explícito, y es lo que la persona
+  // marca en la pantalla de revisión. Sin eso no se puede escribir por ahí,
+  // tenga teléfono o no.
+  consentimientoWhatsapp: boolean;
+}
+
+// `null` = no hay por dónde seguir a este presupuesto. Pasa con un cliente
+// que solo tiene teléfono y sin consentimiento de WhatsApp: la pantalla de
+// revisión exige al menos un dato de contacto, pero no puede obligar a dar
+// el consentimiento. En ese caso no se programa nada, en vez de dejar filas
+// `Envio` que nunca van a poder salir.
+export function elegirCanalSeguimiento({
+  tieneEmail,
+  tieneTelefono,
+  consentimientoWhatsapp,
+}: ElegirCanalParams): CanalSeguimientoElegido | null {
+  // Email primero: más barato, sin ventana de 24 h ni plantillas aprobadas
+  // por Meta. Su consentimiento es la relación precontractual (§5), que se
+  // registra siempre al cargar el presupuesto.
+  if (tieneEmail) return "EMAIL";
+  if (tieneTelefono && consentimientoWhatsapp) return "WHATSAPP";
+  return null;
+}
+
+export interface CalcularEnviosParams {
   presupuestoId: string;
+  canal: CanalSeguimientoElegido;
   // §6.3: la referencia es "el envío del presupuesto" -- fechaEmision del
   // documento si se pudo extraer/cargar, o el momento en que se cargó el
   // presupuesto al sistema si no (decisión propia, a confirmar por Rocco;
@@ -41,13 +75,14 @@ export interface CalcularEnviosEmailParams {
 // modelo Envio en prisma/schema.prisma) -- único por fila, así que
 // programar dos veces el mismo presupuesto (dos requests concurrentes, un
 // reintento) choca en la base en vez de duplicar filas.
-export function calcularEnviosEmail({
+export function calcularEnvios({
   presupuestoId,
+  canal,
   fechaReferencia,
   intervalosDias = INTERVALOS_DIAS_DEFAULT,
   horaInicioEnvio = HORA_INICIO_ENVIO_DEFAULT,
   zonaHoraria = ZONA_HORARIA_DEFAULT,
-}: CalcularEnviosEmailParams): EnvioEmailAProgramar[] {
+}: CalcularEnviosParams): EnvioAProgramar[] {
   const base = DateTime.fromJSDate(fechaReferencia, { zone: zonaHoraria });
 
   return intervalosDias.map((dias, indice) => {
@@ -59,9 +94,9 @@ export function calcularEnviosEmail({
 
     return {
       paso,
-      canal: "EMAIL",
+      canal,
       programadoPara,
-      claveIdempotencia: `${presupuestoId}:${paso}:EMAIL`,
+      claveIdempotencia: `${presupuestoId}:${paso}:${canal}`,
     };
   });
 }

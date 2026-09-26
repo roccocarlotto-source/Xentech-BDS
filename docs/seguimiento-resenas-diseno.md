@@ -409,6 +409,23 @@ Explícitamente NO cubierto:
 - **Sin backfill:** los clientes ya cargados quedan con `personaContacto` en null, y el respaldo a `nombre` los cubre. Hoy no hay ninguno en la base real de todas formas.
 - **No se probó la extracción contra los 4 presupuestos reales:** sigue faltando `OPENROUTER_API_KEY`. El prompt nuevo se escribió a partir de lo que ya está descrito en este documento, no de una corrida real.
 
+### Estado de la etapa 5: el canal se elige por presupuesto (2026-09-26)
+
+Implementa la decisión 1 del 2026-09-26 (§2): email si el cliente tiene email, WhatsApp si no.
+
+- **`elegirCanalSeguimiento()`** (`envioScheduling.ts`), pura: email primero (más barato, sin ventana de 24 h ni plantillas de Meta; su consentimiento es la relación precontractual de §5, que se registra siempre). Sin email, WhatsApp **solo si hay teléfono Y consentimiento de WhatsApp**. Si no se cumple ninguna, devuelve `null` y no se programa nada -- mejor que dejar filas `Envio` que nunca van a poder salir.
+- **`calcularEnviosEmail()` pasa a ser `calcularEnvios()`**, con el canal como parámetro: la `claveIdempotencia` queda `"<presupuestoId>:<paso>:<canal>"`, como ya decía el comentario del modelo.
+- **`presupuesto.repository.ts`** lee el email y el teléfono del cliente DENTRO de la transacción que crea el presupuesto, así el canal se decide con el estado con el que se está creando y no con uno anterior.
+- **La revisión exige al menos un dato de contacto**, email o teléfono: en el schema para un cliente nuevo, en el service para uno existente (ahí el schema solo ve el id), y en la pantalla para no hacer el viaje al backend. El email dejó de ser obligatorio.
+- De paso, dos textos de la pantalla que la decisión dejó desactualizados: la opción de WhatsApp decía "No, solo por email" (ahora "No, sin consentimiento de WhatsApp") y la ayuda del fieldset decía que sin consentimiento el seguimiento va solo por email.
+- Tests: 5 casos nuevos de canal en `envioScheduling.test.ts`, `presupuestoImport.schema.test.ts` nuevo (6 casos), más los de service y pantalla. Backend 251 tests, frontend 45, typecheck/lint/format/build en verde.
+
+Explícitamente NO cubierto:
+
+- **Los `Envio` de WhatsApp se programan pero no salen.** El job del paso 2 filtra por canal EMAIL a propósito: mandar por WhatsApp es la etapa 6 y además depende del trámite de Meta. Las filas quedan en `PROGRAMADO`, que es el mismo estado en que quedaban TODAS antes de que hubiera motor de email -- no es una regresión, es trabajo pendiente visible en la base.
+- **No hay cambio de canal después de crear el presupuesto.** Si a un cliente sin email se le carga uno más tarde, la secuencia ya programada sigue siendo de WhatsApp. Reprogramar al cambiar los datos de contacto es un paso aparte, si hace falta.
+- **Un presupuesto puede quedar sin seguimiento:** cliente con solo teléfono y sin consentimiento de WhatsApp. Es deliberado (§5 no permite escribir sin consentimiento) y la pantalla lo dice.
+
 ### Visibilidad del repo
 
 Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**
