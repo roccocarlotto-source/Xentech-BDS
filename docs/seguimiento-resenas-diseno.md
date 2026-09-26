@@ -379,6 +379,19 @@ Explícitamente NO cubierto:
 - **Recepción de respuestas y detección de "BAJA"** (§6.4, §7): sigue sin cubrir. Es el webhook de entrada de Resend, paso aparte.
 - **Riesgo conocido, sin cubrir: envío exitoso con respuesta perdida.** Si Resend acepta el mail pero la respuesta HTTP se corta, el job lo toma como fallo transitorio, vuelve el `Envio` a `PROGRAMADO` y lo reintenta: el cliente recibe el mismo mail dos veces. La idempotencia de §6.3 (`claveIdempotencia` + UPDATE condicional) cubre "dos corridas en paralelo", no este caso. El arreglo natural es mandar `claveIdempotencia` en el header `Idempotency-Key` de Resend (válido 24 h), pero hay un detalle a resolver antes: Resend rechaza la misma clave con un payload distinto, así que un reintento después de corregir el email del cliente pasaría de fallo transitorio a error duro. Requiere decidir qué entra en la clave; queda anotado, no implementado.
 
+### Estado de la etapa 3: nombre abreviado en las reseñas y dos botones (2026-09-26)
+
+Implementa la decisión 3 del 2026-09-26 (§2). Los dos cambios son chicos pero tocan backend y frontend, porque el botón tiene que decir exactamente lo que se va a publicar.
+
+- **`src/lib/resenas/nombreVisible.ts`:** `abreviarNombreVisible()`, pura -- primera palabra + inicial de la última ("Laura Martínez" → "Laura M.", "Laura de los Santos" → "Laura S."). Una sola palabra queda tal cual; un nombre ya abreviado ("Laura M.") no acumula otra inicial. La usan los DOS lugares (`obtenerFormularioPublico` para el texto del botón y `publicarResena` para `Resena.nombreVisible`): si difirieran, la persona elegiría una cosa y se publicaría otra.
+- **`ResenaPublicaPage.tsx`:** las dos opciones pasan de radios a botones, con `aria-pressed` y el elegido marcado por borde y fondo. `aria-pressed` y no `role="radio"` porque son dos botones alternativos, no un grupo navegable con flechas.
+- Tests: `nombreVisible.test.ts` (7 casos, incluidos acentos y entradas degeneradas) y los de `resena.service.test.ts` / `ResenaPublicaPage.test.tsx` actualizados. Backend 236 tests, frontend 43, typecheck/lint/format/build en verde.
+
+Dos cosas a tener en cuenta:
+
+- **No hay backfill.** Las reseñas ya publicadas conservan el `nombreVisible` con el que se guardaron. Hoy no importa (no hay ninguna: nada está desplegado), pero si aparece alguna antes de desplegar, hay que abreviarla a mano.
+- **Con el cliente cargado como empresa, la abreviación queda rara** ("Panadería La Espiga" → "Panadería E."). Se resuelve solo cuando entre la decisión 4 (empresa y persona de contacto en campos separados): la reseña tiene que usar el nombre de la PERSONA, no el de la empresa. Anotado ahí.
+
 ### Visibilidad del repo
 
 Base-de-datos-Xentech es **privado** desde el 2026-09-26, por los presupuestos reales de `docs/ejemplos-presupuestos/`. **Antes de volver a hacerlo público:**

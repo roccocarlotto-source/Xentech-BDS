@@ -37,7 +37,7 @@ describe("ResenaPublicaPage", () => {
       expect(url).not.toContain(TOKEN);
       if (url.endsWith("/public/resenas/formulario")) {
         expect(JSON.parse(init!.body as string)).toEqual({ token: TOKEN });
-        return jsonResponse({ organizacion: "Cartelería Sur", nombreCliente: "Ana Pérez" });
+        return jsonResponse({ organizacion: "Cartelería Sur", nombreCliente: "Ana P." });
       }
       if (url.endsWith("/public/resenas") && init?.method === "POST") {
         return jsonResponse({ ok: true }, 201);
@@ -56,7 +56,15 @@ describe("ResenaPublicaPage", () => {
 
     await user.click(screen.getByLabelText("4 estrellas"));
     expect(enviar).toBeDisabled();
-    await user.click(screen.getByLabelText("Publicar como Ana Pérez"));
+    // Las dos opciones son botones, y el elegido queda marcado (§2, decisión
+    // 3 del 2026-09-26). El nombre lo abrevia el backend: la página muestra
+    // tal cual lo que se va a publicar.
+    const conNombre = screen.getByRole("button", { name: "Publicar como Ana P." });
+    const anonimo = screen.getByRole("button", { name: "Publicar como anónimo" });
+    expect(conNombre).toHaveAttribute("aria-pressed", "false");
+    await user.click(conNombre);
+    expect(conNombre).toHaveAttribute("aria-pressed", "true");
+    expect(anonimo).toHaveAttribute("aria-pressed", "false");
     await user.type(screen.getByLabelText(/Comentario/), "  Muy buen trabajo ");
     expect(enviar).toBeEnabled();
     await user.click(enviar);
@@ -84,7 +92,7 @@ describe("ResenaPublicaPage", () => {
     renderPage();
 
     await user.click(await screen.findByLabelText("1 estrella"));
-    await user.click(screen.getByLabelText("Publicar como anónimo"));
+    await user.click(screen.getByRole("button", { name: "Publicar como anónimo" }));
     await user.click(screen.getByRole("button", { name: "Enviar reseña" }));
 
     await screen.findByText("¡Gracias por tu reseña!");
@@ -117,7 +125,7 @@ describe("ResenaPublicaPage", () => {
     renderPage();
 
     await user.click(await screen.findByLabelText("5 estrellas"));
-    await user.click(screen.getByLabelText("Publicar como anónimo"));
+    await user.click(screen.getByRole("button", { name: "Publicar como anónimo" }));
     await user.click(screen.getByRole("button", { name: "Enviar reseña" }));
     await waitFor(() => expect(screen.getByText("Ya se usó")).toBeInTheDocument());
   });

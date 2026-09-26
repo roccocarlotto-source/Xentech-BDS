@@ -1,6 +1,7 @@
 import type { ResenaModeracion } from "@prisma/client";
 import { agentToggleRepository } from "../repositories/agentToggle.repository";
 import { resenaRepository, type ResenaRepository } from "../repositories/resena.repository";
+import { abreviarNombreVisible } from "../lib/resenas/nombreVisible";
 import { generarTokenPlano, hashToken, tieneFormatoDeToken } from "../lib/resenas/token";
 import type { PublicarResenaInput } from "../schemas/resena.schema";
 import { AppError } from "../utils/AppError";
@@ -143,14 +144,21 @@ async function resolverTokenVigente(token: string, deps: ResenaDeps) {
 }
 
 // Lo que necesita la página /r/<token> para armar el formulario: a quién le
-// deja la reseña, y el nombre para la opción "Publicar como {Nombre}". Nada
+// deja la reseña, y el nombre ABREVIADO para la opción "Publicar como Laura
+// M." (§2, decisión 3 del 2026-09-26). Nada
 // más del cliente (ni teléfono, ni email, ni el presupuesto).
 export async function obtenerFormularioPublico(
   token: string,
   deps: ResenaDeps = defaultDeps,
 ): Promise<{ organizacion: string; nombreCliente: string }> {
   const { fila, organizacion } = await resolverTokenVigente(token, deps);
-  return { organizacion: organizacion.name, nombreCliente: fila.cliente.nombre };
+  // Abreviado (§2, decisión 3 del 2026-09-26): el botón tiene que decir
+  // exactamente lo que se va a publicar, así que sale de la misma función que
+  // usa publicarResena().
+  return {
+    organizacion: organizacion.name,
+    nombreCliente: abreviarNombreVisible(fila.cliente.nombre),
+  };
 }
 
 export async function publicarResena(
@@ -165,8 +173,9 @@ export async function publicarResena(
     clienteId: fila.clienteId,
     ahora: deps.ahora(),
     anonimo: input.anonimo,
-    // Copia del nombre al momento de publicar (ver el modelo Resena).
-    nombreVisible: input.anonimo ? null : fila.cliente.nombre,
+    // Copia del nombre al momento de publicar (ver el modelo Resena), y
+    // abreviado: nombre + inicial del apellido, nunca el nombre completo.
+    nombreVisible: input.anonimo ? null : abreviarNombreVisible(fila.cliente.nombre),
     estrellas: input.estrellas,
     comentario: input.comentario,
   });

@@ -219,12 +219,14 @@ test("valida que el presupuesto exista y sea del mismo cliente", async () => {
 
 // --- formulario público ------------------------------------------------------
 
-test("el formulario devuelve solo la organización y el nombre del cliente", async () => {
+test("el formulario devuelve solo la organización y el nombre del cliente, abreviado", async () => {
   const { deps } = crearEntorno();
   const { token } = await generarLinkResena(ORG, { clienteId: "cli-1" }, deps);
+  // Abreviado (§2, decisión 3 del 2026-09-26): el botón dice exactamente lo
+  // que se va a publicar, nunca el nombre completo del cliente.
   assert.deepEqual(await obtenerFormularioPublico(token, deps), {
     organizacion: "Cartelería Sur",
-    nombreCliente: "Ana Pérez",
+    nombreCliente: "Ana P.",
   });
 });
 
@@ -262,14 +264,14 @@ test("cliente borrado, organización borrada o módulo apagado: inválido", asyn
 
 // --- publicar ----------------------------------------------------------------
 
-test("publica con nombre: copia el nombre del cliente y marca el token como usado", async () => {
+test("publica con nombre: copia el nombre del cliente abreviado y marca el token como usado", async () => {
   const { deps, tokens, resenas } = crearEntorno();
   const { token } = await generarLinkResena(ORG, { clienteId: "cli-1" }, deps);
 
   await publicarResena(publicar(token, { estrellas: 4, comentario: "Muy bien" }), deps);
 
   assert.equal(resenas.length, 1);
-  assert.equal(resenas[0].nombreVisible, "Ana Pérez");
+  assert.equal(resenas[0].nombreVisible, "Ana P.");
   assert.equal(resenas[0].anonimo, false);
   assert.equal(resenas[0].estrellas, 4);
   assert.equal(resenas[0].comentario, "Muy bien");
@@ -358,7 +360,7 @@ test("listado público: solo aprobadas, sin datos internos, con promedio", async
   assert.deepEqual(
     listado.resenas.map((r) => [r.nombre, r.estrellas]),
     [
-      ["Ana Pérez", 5],
+      ["Ana P.", 5],
       [null, 2],
     ],
   );

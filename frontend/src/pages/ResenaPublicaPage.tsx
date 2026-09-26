@@ -127,26 +127,35 @@ export function ResenaPublicaPage() {
           </span>
         </label>
 
+        {/* Dos botones y no radios (§2, decisión 3 del 2026-09-26): elegir
+            tiene que ser una sola acción. aria-pressed en vez de role="radio"
+            porque son dos botones alternativos, no un grupo de radios
+            navegable con flechas. El nombre ya viene abreviado del backend,
+            que es exactamente lo que se va a publicar. */}
         <fieldset>
           <legend>¿Cómo querés figurar?</legend>
-          <label className="resena-publica-opcion">
-            <input
-              type="radio"
-              name="como-figura"
-              checked={comoFigura === "nombre"}
-              onChange={() => setComoFigura("nombre")}
-            />
-            Publicar como {nombreCliente}
-          </label>
-          <label className="resena-publica-opcion">
-            <input
-              type="radio"
-              name="como-figura"
-              checked={comoFigura === "anonimo"}
-              onChange={() => setComoFigura("anonimo")}
-            />
-            Publicar como anónimo
-          </label>
+          <div className="resena-publica-opciones">
+            <button
+              type="button"
+              className={
+                comoFigura === "nombre" ? "resena-publica-opcion activa" : "resena-publica-opcion"
+              }
+              aria-pressed={comoFigura === "nombre"}
+              onClick={() => setComoFigura("nombre")}
+            >
+              Publicar como {nombreCliente}
+            </button>
+            <button
+              type="button"
+              className={
+                comoFigura === "anonimo" ? "resena-publica-opcion activa" : "resena-publica-opcion"
+              }
+              aria-pressed={comoFigura === "anonimo"}
+              onClick={() => setComoFigura("anonimo")}
+            >
+              Publicar como anónimo
+            </button>
+          </div>
         </fieldset>
 
         {errorPublicar && <p className="import-error">{errorPublicar}</p>}

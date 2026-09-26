@@ -1362,10 +1362,34 @@ body {
   border-radius: 4px;
 }
 
-.resena-publica-opcion {
+.resena-publica-opciones {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Botones alternativos (no radios): el elegido queda marcado con borde y
+   fondo, no con un punto. Ver ResenaPublicaPage.tsx. */
+.resena-publica-opcion {
+  flex: 1 1 180px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.resena-publica-opcion:hover {
+  border-color: var(--ink-secondary);
+}
+
+.resena-publica-opcion.activa {
+  border-color: var(--ink-primary);
+  background: var(--page);
+  font-weight: 600;
 }
 
 .resena-publica-comentario {
