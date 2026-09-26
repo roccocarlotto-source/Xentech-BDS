@@ -426,6 +426,33 @@ Explícitamente NO cubierto:
 - **No hay cambio de canal después de crear el presupuesto.** Si a un cliente sin email se le carga uno más tarde, la secuencia ya programada sigue siendo de WhatsApp. Reprogramar al cambiar los datos de contacto es un paso aparte, si hace falta.
 - **Un presupuesto puede quedar sin seguimiento:** cliente con solo teléfono y sin consentimiento de WhatsApp. Es deliberado (§5 no permite escribir sin consentimiento) y la pantalla lo dice.
 
+### Estado de la etapa 5: recepción de respuestas y baja (2026-09-26)
+
+Cierra lo que faltaba de la etapa 5. Hasta ahora **cada email prometía "Respondé BAJA si no querés más mensajes" y nadie leía la respuesta**: la secuencia seguía igual. Eso era una promesa incumplida y, en Uruguay, un problema con la Ley 18.331.
+
+Cómo llegan las respuestas, según la documentación de Resend (verificada, no de memoria):
+
+- El webhook `email.received` **manda solo metadata, no el cuerpo**. El texto se pide aparte con `GET https://api.resend.com/emails/receiving/<id>`.
+- La firma va por el esquema de Svix: headers `svix-id`, `svix-timestamp`, `svix-signature`, HMAC-SHA256 sobre `"<id>.<timestamp>.<body crudo>"`.
+- Para recibir hace falta un MX, pero **sirve el subdominio `<id>.resend.app` que da Resend**: esto no depende de la decisión de dominio.
+
+Lo hecho:
+
+- **`src/lib/email/resendWebhookVerification.ts`:** verificación de la firma a mano (sin SDK, como el webhook de WhatsApp), con ventana de tolerancia de 5 minutos en el timestamp contra replay y comparación en tiempo constante. Usa `req.rawBody`, que `app.ts` ya guardaba.
+- **`src/lib/seguimiento/deteccionBaja.ts`:** puro. Primero **quita la cita del mail original** -- sin eso, la propia línea de baja volvería citada en cualquier respuesta y daría de baja a todo el mundo -- y después busca la baja en lo que la persona efectivamente escribió. Reconoce "BAJA", "no me escriban más", "sacarme de la lista", "unsubscribe" y compañía, sobre texto normalizado sin acentos ni puntuación. Solo mira los primeros 200 caracteres: así "la parte baja de la fachada" o "la baja del IVA" no cortan un seguimiento.
+- **`src/lib/email/direccionRespuesta.ts`:** cada email sale con Reply-To `respuestas+<presupuestoId>@<dominio>` (§6.4, "dirección con identificador"). Es determinístico y seguro en multi-tenant: dos organizaciones pueden tener un cliente con el mismo email y la respuesta igual cae en el presupuesto correcto.
+- **`src/services/respuestaEmail.service.ts`:** el orquestador. La baja se aplica **antes** de registrar el mensaje, a propósito: si el insert falla (por ejemplo por el `externalId` único en un reintento del webhook), la baja igual quedó. Al revés se perdería. Da de baja TODOS los consentimientos de email del cliente, no solo el del presupuesto que originó la respuesta -- quien pide que no le escriban más no lo está pidiendo por un presupuesto.
+- **Respaldo para no perder una baja:** si el Reply-To llega sin tag utilizable, se ubica al cliente por su email (`findUnicoPorEmailEnTodasLasOrganizaciones`, la única query del repo sin filtro por organización, que por eso exige unicidad y devuelve `null` si hay ambigüedad).
+- **`POST /api/webhooks/email`**, sin `authenticate`: la identidad la da la firma. Ignora con 200 los eventos que no son `email.received` y los casos sin configurar.
+- **Sin cambios de schema:** `MensajeSeguimiento` ya tenía dirección INBOUND y `externalId` único, y `Consentimiento` ya tenía `bajaEn`. No hay tabla nueva, así que `rls_policies.sql` no cambia y no hace falta otro `db-migrate`.
+- Tests: 36 nuevos (detección de baja con casos reales de cita, firma con body manipulado y replay, direcciones, y el servicio completo con fakes). Backend 287 tests, typecheck/lint/format en verde.
+
+Explícitamente NO cubierto:
+
+- **Sin probar contra Resend real.** Falta `RESEND_WEBHOOK_SECRET` y configurar el MX. El comportamiento se verificó con fakes, no con un mail de verdad.
+- **La clasificación de la respuesta es la etapa 7.** Acá el mensaje entrante se guarda con `clasificacionIa` en null, y esas filas son justamente la cola de trabajo de esa etapa -- no hace falta una tabla de cola aparte.
+- **No se usa el resultado de SPF/DKIM/DMARC** que Resend calcula y devuelve. Para una baja conviene ser permisivo (mejor dar de baja de más que de menos); para la etapa 7, donde una respuesta falsificada podría mover el estado de un presupuesto, sí habría que mirarlo.
+
 ### Visibilidad del repo y mudanza a Xentech-BDS (2026-09-26)
 
 **Este repo es `roccocarlotto-source/Xentech-BDS`.** El anterior era `Base-de-datos-Xentech` y quedó privado, sin uso.

@@ -18,6 +18,7 @@ function depsBase(overrides: Partial<EnvioJobDeps> = {}): EnvioJobDeps {
     crearMensajeSaliente: async () => undefined,
     buscarConfig: async () => null,
     getEmailProvider: () => null,
+    replyToBase: () => null,
     ...overrides,
   };
 }

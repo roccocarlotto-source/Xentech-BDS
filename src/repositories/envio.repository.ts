@@ -105,6 +105,16 @@ export const envioRepository = {
   // Para decidir si "terminó la secuencia" (§6.3, punto 4) después de
   // mandar o descartar un Envio: ¿queda algo más pendiente para este
   // presupuesto por este canal?
+  // Baja del cliente (§5, §6.4): corta la secuencia "de inmediato". Se
+  // cancelan los PROGRAMADO, no los ENVIANDO: una fila reclamada ya está en
+  // vuelo y el job la resuelve solo -- pisarla acá abriría una carrera.
+  cancelarPendientesDelPresupuesto(organizationId: string, presupuestoId: string, motivo: string) {
+    return prisma.envio.updateMany({
+      where: { organizationId, presupuestoId, estado: "PROGRAMADO" },
+      data: { estado: "CANCELADO", ultimoError: motivo },
+    });
+  },
+
   contarPendientesDelPresupuesto(organizationId: string, presupuestoId: string): Promise<number> {
     return prisma.envio.count({
       where: {

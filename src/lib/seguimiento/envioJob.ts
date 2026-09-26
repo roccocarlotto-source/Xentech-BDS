@@ -11,6 +11,7 @@ import { evaluarPrecondicionesEnvio } from "./envioChecks";
 import { armarEmailSeguimiento, type PlantillaEmail } from "./envioContenido";
 import { estaDentroDeVentanaDeEnvio } from "./envioVentana";
 import { nombreDeLaPersona } from "../../utils/nombreCliente";
+import { direccionDeRespuesta } from "../email/direccionRespuesta";
 import { HORA_FIN_ENVIO_DEFAULT, MAX_INTENTOS_DEFAULT } from "./configDefaults";
 import { HORA_INICIO_ENVIO_DEFAULT, ZONA_HORARIA_DEFAULT } from "./envioScheduling";
 
@@ -52,6 +53,7 @@ export interface EnvioJobDeps {
   }) => Promise<unknown>;
   buscarConfig: (organizationId: string) => Promise<ConfigSeguimientoParaEnvio | null>;
   getEmailProvider: () => EmailProvider | null;
+  replyToBase: () => string | null;
 }
 
 const defaultDeps: EnvioJobDeps = {
@@ -71,6 +73,7 @@ const defaultDeps: EnvioJobDeps = {
   buscarConfig: (organizationId) =>
     configSeguimientoRepository.buscarPorOrganizacion(organizationId),
   getEmailProvider,
+  replyToBase: () => process.env.EMAIL_REPLY_TO ?? null,
 };
 
 export interface ProcesarEnviosVencidosResultado {
@@ -227,10 +230,17 @@ export async function procesarEnviosVencidos(
       plantilla,
     );
 
+    // Reply-To con el id del presupuesto (§6.4, ver direccionRespuesta.ts):
+    // es lo que despues permite saber de que presupuesto es una respuesta.
+    // Si EMAIL_REPLY_TO no esta configurada, se manda sin Reply-To y las
+    // respuestas van al remitente -- el webhook igual las ubica por el
+    // email del cliente, con el respaldo de respuestaEmail.service.ts.
+    const replyToBase = deps.replyToBase();
     const envioResultado = await emailProvider.enviar({
       to: destinatario,
       subject: email.asunto,
       body: email.cuerpo,
+      replyTo: replyToBase ? direccionDeRespuesta(replyToBase, envio.presupuestoId) : null,
     });
 
     if (envioResultado.ok) {

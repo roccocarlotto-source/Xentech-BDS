@@ -15,6 +15,7 @@ import { whatsappConnectionRouter } from "./routes/whatsappConnection";
 import { knowledgeBaseEntriesRouter } from "./routes/knowledgeBaseEntries";
 import { usersRouter } from "./routes/users";
 import { conversationsRouter } from "./routes/conversations";
+import { emailWebhookRouter } from "./routes/webhooks/email";
 import { whatsappWebhookRouter } from "./routes/webhooks/whatsapp";
 import { resenasPublicRouter } from "./routes/resenasPublic";
 import { resenasRouter } from "./routes/resenas";
@@ -48,6 +49,7 @@ export function createApp() {
 
   app.use(healthRouter);
   app.use(whatsappWebhookRouter);
+  app.use(emailWebhookRouter);
   // Rutas públicas (sin sesión) ANTES de cualquier router que haga
   // `router.use(authenticate)` sin path -- esos aplican authenticate a todo
   // request que pase por ellos, así que una ruta pública montada después
